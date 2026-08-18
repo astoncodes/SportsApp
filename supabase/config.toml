@@ -156,11 +156,26 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+# The admin review app's dev server. Supabase falls back to site_url whenever a
+# requested redirect is not in the allowlist below, so leaving this at the
+# default (port 3000) silently sends every sign-in link to a dead port.
+site_url = "http://localhost:5173"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# Exact matches only — no wildcards, no implied host aliases. localhost and
+# 127.0.0.1 are different entries even though they resolve to the same machine,
+# and the admin app's origin depends on which one you typed in the address bar.
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  # Expo dev server (web target).
+  "http://localhost:8081",
+  "http://127.0.0.1:8081",
+  # Mobile deep link — matches `scheme` in apps/mobile/app.config.ts.
+  "pickupsports://",
+  "pickupsports://**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

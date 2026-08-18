@@ -57,6 +57,22 @@ npm run db:test         # 55 database tests
 > **Testing on a phone or simulator?** `127.0.0.1` means _the device itself_, not your Mac.
 > Use your machine's LAN IP in `EXPO_PUBLIC_SUPABASE_URL`, e.g. `http://192.168.1.20:54321`.
 
+### Seeing the app
+
+```bash
+npm run mobile -- --web    # opens in a browser, no Xcode needed
+npm run mobile             # then press i / a for a simulator, or scan the QR code
+npm run admin              # http://localhost:5173
+```
+
+The web target works because `src/lib/secure-storage.web.ts` swaps the keychain for
+`localStorage` — `expo-secure-store` has no web implementation and would otherwise throw the
+moment Supabase reads a session. Tokens are plain text in a browser, so treat web as a
+development convenience, not an equivalent to the native app.
+
+An iOS simulator needs full **Xcode**, not just Command Line Tools
+(`xcode-select -p` should print a path inside `Xcode.app`).
+
 ---
 
 ## Everyday commands
@@ -87,7 +103,12 @@ database connection and a person doing it on purpose.
 1. `npm run admin`, enter your email, submit
 2. Open <http://127.0.0.1:54324> (Mailpit) and click the sign-in link — nothing leaves your machine
 3. `npm run db:admin -- you@example.com`
-4. Reload. You should now see **two** regions; a non-admin sees only Charlottetown.
+4. Sign in again. You should now see **two** regions; a non-admin sees only Charlottetown.
+
+If a sign-in link lands on a dead port, check `additional_redirect_urls` in
+`supabase/config.toml`. Supabase only honours redirect targets on that exact-match allowlist and
+silently falls back to `site_url` otherwise — and `localhost` and `127.0.0.1` count as different
+entries even though they reach the same machine.
 
 That second region (Halifax, `is_published = false`) is the importer's smoke test: it proves the
 importer carries no Charlottetown-specific constants, without creating a review burden.
