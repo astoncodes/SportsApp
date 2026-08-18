@@ -59,11 +59,19 @@ npm run db:test         # 55 database tests
 
 ### Seeing the app
 
+**From the repository root:**
+
 ```bash
 npm run mobile -- --web    # opens in a browser, no Xcode needed
 npm run mobile             # then press i / a for a simulator, or scan the QR code
 npm run admin              # http://localhost:5173
 ```
+
+**From inside an app directory**, `npm run dev` works in either one
+(`apps/mobile` also has `dev:web`). The `mobile` and `admin` scripts above only
+exist at the root — running them from a workspace gives
+`Missing script: "mobile"`, because npm is reading that workspace's own
+`package.json`.
 
 The web target works because `src/lib/secure-storage.web.ts` swaps the keychain for
 `localStorage` — `expo-secure-store` has no web implementation and would otherwise throw the
