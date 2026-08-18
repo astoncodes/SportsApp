@@ -1,5 +1,5 @@
 {
-  "name": "@pickup-sports/mobile",
+  "name": "@dropin/mobile",
   "main": "expo-router/entry",
   "version": "0.1.0",
   "private": true,
@@ -17,8 +17,8 @@
   "dependencies": {
     "@expo/ui": "~57.0.11",
     "@expo/vector-icons": "^15.0.2",
-    "@pickup-sports/database-types": "*",
-    "@pickup-sports/shared": "*",
+    "@dropin/database-types": "*",
+    "@dropin/shared": "*",
     "@supabase/supabase-js": "^2.112.3",
     "@tanstack/react-query": "^5.101.4",
     "expo": "~57.0.14",

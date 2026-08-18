@@ -52,7 +52,7 @@ jobs:
             echo "VITE_SUPABASE_URL=$(npx supabase status -o env | grep '^API_URL=' | cut -d= -f2- | tr -d '\"')"
             echo "VITE_SUPABASE_ANON_KEY=$(npx supabase status -o env | grep '^ANON_KEY=' | cut -d= -f2- | tr -d '\"')"
             echo "SUPABASE_DB_URL=$(npx supabase status -o env | grep '^DB_URL=' | cut -d= -f2- | tr -d '\"')"
-            echo "OVERPASS_USER_AGENT=pickup-sports-importer/ci (contact: ci@example.invalid)"
+            echo "OVERPASS_USER_AGENT=dropin-importer/ci (contact: ci@example.invalid)"
           } > .env
 
       - name: Format

@@ -5,7 +5,7 @@ import {
   LOCATION_GATE,
   PARTY_SIZE,
   RUN_SERIES,
-} from '@pickup-sports/shared';
+} from '@dropin/shared';
 import { describe, expect, it } from 'vitest';
 
 /**

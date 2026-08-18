@@ -51,22 +51,22 @@ function read(name: string): string {
 }
 
 const config: ExpoConfig = {
-  name: 'Pickup Sports',
-  slug: 'pickup-sports',
+  name: 'Drop In',
+  slug: 'drop-in',
   version: '0.1.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'pickupsports',
+  scheme: 'dropin',
   // The New Architecture is the default in SDK 57 and no longer configurable.
   userInterfaceStyle: 'automatic',
 
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.pickupsports.app',
+    bundleIdentifier: 'com.dropin.app',
   },
 
   android: {
-    package: 'com.pickupsports.app',
+    package: 'com.dropin.app',
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/android-icon-foreground.png',

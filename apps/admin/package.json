@@ -1,5 +1,5 @@
 {
-  "name": "@pickup-sports/admin",
+  "name": "@dropin/admin",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -12,8 +12,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pickup-sports/database-types": "*",
-    "@pickup-sports/shared": "*",
+    "@dropin/database-types": "*",
+    "@dropin/shared": "*",
     "@supabase/supabase-js": "^2.112.3",
     "@tanstack/react-query": "^5.101.4",
     "react": "19.2.3",

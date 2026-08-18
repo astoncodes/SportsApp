@@ -34,7 +34,7 @@ PHASE_1_MESSAGE = (
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="venue-importer",
-        description="Import OpenStreetMap sport venues into the pickup-sports staging tables.",
+        description="Import OpenStreetMap sport venues into the Drop In staging tables.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version", version=f"venue-importer {__version__}")

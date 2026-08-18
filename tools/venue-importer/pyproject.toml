@@ -1,7 +1,7 @@
 [project]
 name = "venue-importer"
 version = "0.1.0"
-description = "Imports OpenStreetMap sport venues into the pickup-sports staging tables."
+description = "Imports OpenStreetMap sport venues into the Drop In staging tables."
 requires-python = ">=3.12"
 
 # Deliberately small. The importer builds a query string, POSTs it, loops over

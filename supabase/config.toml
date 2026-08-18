@@ -2,7 +2,7 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "pickup-sports"
+project_id = "drop-in"
 
 [api]
 enabled = true
@@ -173,8 +173,8 @@ additional_redirect_urls = [
   "http://localhost:8081",
   "http://127.0.0.1:8081",
   # Mobile deep link — matches `scheme` in apps/mobile/app.config.ts.
-  "pickupsports://",
-  "pickupsports://**",
+  "dropin://",
+  "dropin://**",
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600

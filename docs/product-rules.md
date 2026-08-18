@@ -174,18 +174,18 @@ Do not optimize growth features until this loop is measurably used.
 
 Agents and contributors must **stop and ask** rather than silently choosing.
 
-| Decision                  | Recommended default                                | Needed by            |
-| ------------------------- | -------------------------------------------------- | -------------------- |
-| App name and identifiers  | internal slug `pickup-sports`                      | store builds         |
-| Auth method               | email one-time code first, social later            | Phase 2              |
-| Browse without an account | allow read-only browsing                           | Phase 2              |
-| Initial public sports     | basketball, soccer, volleyball, pickleball, tennis | Charlottetown launch |
-| Check-in identity display | display name + avatar while active                 | Phase 3              |
-| Location threshold        | 250 m, accuracy ≤100 m                             | Phase 3              |
-| Party-size cap            | 20                                                 | Phase 3              |
-| Run lifetime              | 12 weeks                                           | Phase 4              |
-| Production map provider   | native platform maps, adapter seam kept            | public beta          |
-| Venue correction flow     | admin contact form before community editing        | public beta          |
+| Decision                     | Recommended default                                                               | Needed by            |
+| ---------------------------- | --------------------------------------------------------------------------------- | -------------------- |
+| ~~App name and identifiers~~ | **Decided: Drop In.** slug `drop-in`, scheme `dropin://`, bundle `com.dropin.app` | ~~store builds~~     |
+| Auth method                  | email one-time code first, social later                                           | Phase 2              |
+| Browse without an account    | allow read-only browsing                                                          | Phase 2              |
+| Initial public sports        | basketball, soccer, volleyball, pickleball, tennis                                | Charlottetown launch |
+| Check-in identity display    | display name + avatar while active                                                | Phase 3              |
+| Location threshold           | 250 m, accuracy ≤100 m                                                            | Phase 3              |
+| Party-size cap               | 20                                                                                | Phase 3              |
+| Run lifetime                 | 12 weeks                                                                          | Phase 4              |
+| Production map provider      | native platform maps, adapter seam kept                                           | public beta          |
+| Venue correction flow        | admin contact form before community editing                                       | public beta          |
 
 Seeded defaults reflect the recommended column. `ice-hockey` is seeded **inactive** — well
 represented in PEI data, but rink access works differently from pickup play, so activating it is

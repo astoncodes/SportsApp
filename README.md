@@ -1,7 +1,10 @@
-# Pickup Sports
+# Drop In
 
 Find where pickup games are happening right now, check in while you're there, and see the
 recurring runs near you. Launch region: **Charlottetown, Prince Edward Island**.
+
+Named for what rec centres already call this: drop-in soccer, drop-in hockey, drop-in ball.
+Sport-neutral, and it needs no explaining to anyone who already plays.
 
 This repo is at **Phase 0** — repository and database foundation. See [Build status](#build-status)
 for exactly what works today and what doesn't.

@@ -2,7 +2,7 @@
 // Native does not fully provide. Must be imported before createClient runs.
 import 'react-native-url-polyfill/auto';
 
-import type { Database } from '@pickup-sports/database-types';
+import type { Database } from '@dropin/database-types';
 import { createClient } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 
