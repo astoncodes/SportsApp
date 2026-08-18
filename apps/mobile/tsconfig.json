@@ -1,0 +1,16 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/assets/*": ["./assets/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  // app.config.ts and metro.config.js run in Node, not in the app bundle. They
+  // are typechecked by tsconfig.node.json instead, so that Node globals stay
+  // out of the React Native type space — where importing `node:fs` would
+  // typecheck happily and then fail on a device.
+  "exclude": ["node_modules", "app.config.ts", "metro.config.js"]
+}

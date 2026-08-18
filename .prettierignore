@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.expo/
+coverage/
+
+# Generated — regenerate with `npm run db:types`, never hand-format.
+packages/database-types/src/database.types.ts
+
+# Python is formatted by ruff, not prettier.
+tools/venue-importer/
+
+# Lockfiles
+package-lock.json
+uv.lock
+
+# SQL: prettier has no Postgres parser and would mangle these.
+supabase/migrations/
+supabase/tests/
+supabase/seed.sql
+
+assets/

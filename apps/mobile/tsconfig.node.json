@@ -1,0 +1,18 @@
+{
+  // Build-time config files. These execute in Node under the Expo CLI and never
+  // reach the app bundle, so they get Node types and standard resolution rather
+  // than Expo's react-native condition.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": ["app.config.ts"]
+}

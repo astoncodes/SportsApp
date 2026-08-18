@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.expo/
+web-build/
+*.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Environment — never commit real credentials.
+# .env.example is the committed template and MUST stay tracked.
+.env
+.env.*
+!.env.example
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Native build artifacts (managed workflow regenerates these)
+apps/mobile/ios/
+apps/mobile/android/
+
+# Editor / OS
+.DS_Store
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
