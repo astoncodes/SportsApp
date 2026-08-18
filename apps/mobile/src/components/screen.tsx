@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { radius, spacing } from '../theme';
-import { usePalette } from '../theme/use-palette';
+import { radius, space as spacing, usePalette } from '../theme';
 
 /** Standard page frame: safe-area aware, scrollable, themed. */
 export function Screen({ children }: { children: ReactNode }) {
@@ -30,7 +29,7 @@ export function Title({ children }: { children: ReactNode }) {
 
 export function Body({ children }: { children: ReactNode }) {
   const colors = usePalette();
-  return <Text style={[styles.body, { color: colors.muted }]}>{children}</Text>;
+  return <Text style={[styles.body, { color: colors.textMuted }]}>{children}</Text>;
 }
 
 /**
@@ -45,7 +44,7 @@ export function ComingInPhase({ phase, children }: { phase: string; children: Re
   return (
     <View style={[styles.note, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <Text style={[styles.phase, { color: colors.accent }]}>{phase}</Text>
-      <Text style={[styles.body, { color: colors.muted }]}>{children}</Text>
+      <Text style={[styles.body, { color: colors.textMuted }]}>{children}</Text>
     </View>
   );
 }

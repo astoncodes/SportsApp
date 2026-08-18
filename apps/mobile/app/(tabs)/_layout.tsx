@@ -1,7 +1,7 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs } from 'expo-router';
 
-import { usePalette } from '../../src/theme/use-palette';
+import { usePalette } from '../../src/theme';
 
 /**
  * The three destinations from the product brief: what is happening now, what
@@ -22,8 +22,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.muted,
+        tabBarActiveTintColor: colors.live,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
       }}
     >
@@ -32,7 +32,11 @@ export default function TabsLayout() {
         options={{
           title: 'Live',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'flash' : 'flash-outline'} size={size} color={color} />
+            <MaterialCommunityIcons
+              name={focused ? 'lightning-bolt' : 'lightning-bolt-outline'}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -41,7 +45,11 @@ export default function TabsLayout() {
         options={{
           title: 'Scheduled',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={size} color={color} />
+            <MaterialCommunityIcons
+              name={focused ? 'calendar' : 'calendar-blank-outline'}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -50,7 +58,11 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />
+            <MaterialCommunityIcons
+              name={focused ? 'account' : 'account-outline'}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

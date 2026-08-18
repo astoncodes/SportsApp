@@ -2,7 +2,7 @@ import { Link } from 'expo-router';
 
 import { Body, ComingInPhase, Screen, Title } from '../../src/components/screen';
 import { useSession } from '../../src/providers/auth-context';
-import { usePalette } from '../../src/theme/use-palette';
+import { usePalette } from '../../src/theme';
 
 export default function ProfileScreen() {
   const colors = usePalette();

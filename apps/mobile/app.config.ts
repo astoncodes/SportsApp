@@ -77,7 +77,11 @@ const config: ExpoConfig = {
   },
 
   web: {
-    output: 'static',
+    // 'single' (SPA), not 'static'. Static prerendering runs this bundle in
+    // Node, and a map library that touches `window` at import time cannot
+    // survive that. Nothing here benefits from prerendered HTML — every screen
+    // is behind a live query.
+    output: 'single',
     favicon: './assets/images/favicon.png',
   },
 
