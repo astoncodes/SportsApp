@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import VenueMap from '../../src/components/map/venue-map';
@@ -16,9 +16,11 @@ import {
   sportIcon,
 } from '../../src/components/ui/primitives';
 import { ResultsSheet } from '../../src/components/ui/results-sheet';
+import { useAccountSports } from '../../src/features/account/api';
 import { useDeviceLocation } from '../../src/features/location/use-device-location';
 import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../../src/features/venues/api';
 import { VenueCard } from '../../src/features/venues/venue-card';
+import { useSession } from '../../src/providers/auth-context';
 import { radius, space, useThemeName, usePalette } from '../../src/theme';
 import type { IconName } from '../../src/components/ui/primitives';
 
@@ -35,9 +37,22 @@ export default function LiveScreen() {
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isPhone = width < 600;
 
-  const [selectedSportIds, setSelectedSportIds] = useState<number[]>([]);
+  const { session } = useSession();
+  const userId = session?.user.id;
+  const preferredSports = useAccountSports(userId);
+  const [filterOverride, setFilterOverride] = useState<{
+    userId: string | null;
+    sportIds: number[];
+  } | null>(null);
+  const selectedSportIds =
+    filterOverride?.userId === (userId ?? null)
+      ? filterOverride.sportIds
+      : (preferredSports.data ?? []);
   const [view, setView] = useState<'map' | 'list'>('map');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [center, setCenter] = useState<{ latitude: number; longitude: number }>(DEFAULT_CENTER);
 
@@ -78,11 +93,21 @@ export default function LiveScreen() {
   };
 
   const liveCount = (venues.data ?? []).filter((v) => v.here_now > 0).length;
+  const displayedVenues = useMemo(() => {
+    const items = venues.data ?? [];
+    if (!selectedVenueId) return items;
+    return [...items].sort((a, b) =>
+      a.venue_id === selectedVenueId ? -1 : b.venue_id === selectedVenueId ? 1 : 0,
+    );
+  }, [venues.data, selectedVenueId]);
 
   function toggleSport(id: number) {
-    setSelectedSportIds((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
-    );
+    setFilterOverride({
+      userId: userId ?? null,
+      sportIds: selectedSportIds.includes(id)
+        ? selectedSportIds.filter((value) => value !== id)
+        : [...selectedSportIds, id],
+    });
   }
 
   async function handleLocate() {
@@ -92,7 +117,7 @@ export default function LiveScreen() {
 
   const listContent = (
     <FlatList
-      data={venues.data ?? []}
+      data={displayedVenues}
       keyExtractor={(venue) => venue.venue_id}
       contentContainerStyle={{
         padding: space.lg,
@@ -141,7 +166,6 @@ export default function LiveScreen() {
             colorScheme={scheme}
             onSelectMarker={(id) => {
               setSelectedVenueId(id);
-              router.push(`/venue/${id}`);
             }}
             userLocation={
               locationState.status === 'granted'
@@ -169,41 +193,50 @@ export default function LiveScreen() {
               </View>
             </View>
 
-            <IconButton icon="magnify" label="Search venues" onPress={() => setView('list')} />
             <IconButton
-              icon="account-circle-outline"
-              label="Your profile"
-              onPress={() => router.push('/profile')}
+              icon="tune-variant"
+              label={filtersOpen ? 'Hide sport filters' : 'Show sport filters'}
+              onPress={() => setFiltersOpen((current) => !current)}
+            />
+            <IconButton
+              icon="map-marker-plus-outline"
+              label="Add a venue"
+              onPress={() => router.push('/venue-submission/new')}
             />
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipRow}
-            accessibilityLabel="Filter by sport"
-          >
-            <Chip
-              label="All sports"
-              icon="filter-variant"
-              selected={selectedSportIds.length === 0}
-              onPress={() => setSelectedSportIds([])}
-            />
-            {activeSports.map((sport) => (
+          {(!isPhone || filtersOpen) && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+              accessibilityLabel="Filter by sport"
+            >
               <Chip
-                key={sport.id}
-                label={sport.name}
-                icon={sportIcon(sport.slug) as IconName}
-                selected={selectedSportIds.includes(sport.id)}
-                onPress={() => toggleSport(sport.id)}
+                label="All sports"
+                icon="filter-variant"
+                selected={selectedSportIds.length === 0}
+                onPress={() => setFilterOverride({ userId: userId ?? null, sportIds: [] })}
               />
-            ))}
-          </ScrollView>
+              {activeSports.map((sport) => (
+                <Chip
+                  key={sport.id}
+                  label={sport.name}
+                  icon={sportIcon(sport.slug) as IconName}
+                  selected={selectedSportIds.includes(sport.id)}
+                  onPress={() => toggleSport(sport.id)}
+                />
+              ))}
+            </ScrollView>
+          )}
         </AdaptiveGlassSurface>
       </View>
 
       {/* --- Right-hand floating controls --- */}
-      <View style={[styles.sideControls, { top: insets.top + 132 }]} pointerEvents="box-none">
+      <View
+        style={[styles.sideControls, { top: insets.top + (isPhone && !filtersOpen ? 84 : 132) }]}
+        pointerEvents="box-none"
+      >
         <AdaptiveGlassSurface borderRadius={radius.pill} style={styles.controlStack}>
           <PressableSurface
             onPress={() => setView(view === 'map' ? 'list' : 'map')}
@@ -245,7 +278,10 @@ export default function LiveScreen() {
       {/* Permission denial is explained where it happened, and never blocks
           browsing — the map keeps working, it just cannot centre on you. */}
       {(locationState.status === 'denied' || locationState.status === 'unavailable') && (
-        <View style={[styles.notice, { top: insets.top + 132 }]} pointerEvents="box-none">
+        <View
+          style={[styles.notice, { top: insets.top + (isPhone && !filtersOpen ? 84 : 132) }]}
+          pointerEvents="box-none"
+        >
           <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
             <AppText variant="caption">
               {locationState.status === 'denied'
@@ -274,7 +310,9 @@ export default function LiveScreen() {
           {listContent}
         </ResultsSheet>
       ) : (
-        <View style={{ flex: 1, paddingTop: insets.top + 130 }}>{listContent}</View>
+        <View style={{ flex: 1, paddingTop: insets.top + (isPhone && !filtersOpen ? 82 : 130) }}>
+          {listContent}
+        </View>
       )}
     </View>
   );

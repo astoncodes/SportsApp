@@ -1,0 +1,402 @@
+import { DUPLICATE_DISTANCE_METRES } from '@dropin/shared';
+import type { IndoorState } from '@dropin/shared';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useRouter } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import VenueMap from '../../components/map/venue-map';
+import type { MapCoordinate, MapRegion } from '../../components/map/types';
+import { AppText, Button, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
+import { searchPlaces } from '../geocoding/nominatim';
+import type { GeocodingResult } from '../geocoding/nominatim';
+import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../venues/api';
+import { useSession } from '../../providers/auth-context';
+import { elevation, radius, space, usePalette, useThemeName } from '../../theme';
+import type { IconName } from '../../components/ui/primitives';
+import { useSubmitVenue } from './api';
+
+const DEFAULT_REGION: MapRegion = {
+  ...DEFAULT_CENTER,
+  latitudeDelta: 0.025,
+  longitudeDelta: 0.025,
+};
+
+export function VenueSubmissionForm() {
+  const colors = usePalette();
+  const scheme = useThemeName();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { session } = useSession();
+  const sports = useSports();
+  const submitVenue = useSubmitVenue();
+
+  const [query, setQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchController = useRef<AbortController | null>(null);
+  const [pin, setPin] = useState<MapCoordinate>(DEFAULT_CENTER);
+  const [region, setRegion] = useState<MapRegion>(DEFAULT_REGION);
+  const [address, setAddress] = useState('');
+  const [duplicateCheckAccepted, setDuplicateCheckAccepted] = useState(false);
+  const [name, setName] = useState('');
+  const [sportIds, setSportIds] = useState<number[]>([]);
+  const [indoorState, setIndoorState] = useState<IndoorState>('unknown');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  useEffect(() => () => searchController.current?.abort(), []);
+
+  const nearby = useNearbyVenues({
+    latitude: pin.latitude,
+    longitude: pin.longitude,
+    sportIds: [],
+    radiusM: DUPLICATE_DISTANCE_METRES.submissionPrevention,
+  });
+
+  const marker = useMemo(
+    () => [
+      {
+        id: 'draft-location',
+        latitude: pin.latitude,
+        longitude: pin.longitude,
+        sportSlug: null,
+        count: 0,
+        isLive: false,
+        isPending: true,
+        label: 'Proposed venue location. Drag to adjust.',
+        selected: true,
+        draggable: true,
+      },
+    ],
+    [pin],
+  );
+
+  function movePin(coordinate: MapCoordinate) {
+    setPin(coordinate);
+    setRegion((current) => ({ ...current, ...coordinate }));
+    setDuplicateCheckAccepted(false);
+  }
+
+  async function handleSearch() {
+    searchController.current?.abort();
+    const controller = new AbortController();
+    searchController.current = controller;
+    setSearchError(null);
+    setIsSearching(true);
+    try {
+      const results = await searchPlaces(query, controller.signal);
+      setSearchResults(results);
+      if (results.length === 0) setSearchError('No matching places found. Try a broader search.');
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') setSearchError((error as Error).message);
+    } finally {
+      if (searchController.current === controller) setIsSearching(false);
+    }
+  }
+
+  function chooseResult(result: GeocodingResult) {
+    movePin({ latitude: result.latitude, longitude: result.longitude });
+    setAddress(result.label.slice(0, 240));
+    setQuery(result.label);
+    setSearchResults([]);
+  }
+
+  async function handleSubmit() {
+    setValidationError(null);
+    if (!session) {
+      router.push('/sign-in');
+      return;
+    }
+    if (name.trim().length < 2) {
+      setValidationError('Enter a venue name of at least 2 characters.');
+      return;
+    }
+    if (sportIds.length === 0) {
+      setValidationError('Choose at least one sport.');
+      return;
+    }
+
+    try {
+      await submitVenue.mutateAsync({
+        name: name.trim(),
+        latitude: pin.latitude,
+        longitude: pin.longitude,
+        sportIds,
+        indoorState,
+        addressText: address.trim() || undefined,
+      });
+    } catch {
+      // The mutation error is rendered below with the server-provided message.
+    }
+  }
+
+  if (submitVenue.isSuccess) {
+    return (
+      <View style={[styles.successScreen, { backgroundColor: colors.background }]}>
+        <MaterialCommunityIcons name="check-circle" size={54} color={colors.live} />
+        <AppText variant="title">Submitted for review</AppText>
+        <AppText variant="body" tone="muted" style={{ textAlign: 'center' }}>
+          Your pin and coordinates were saved. It will stay private until an admin reviews it.
+        </AppText>
+        {submitVenue.data.status === 'possible_duplicate' && (
+          <AppText variant="caption" tone="soon" style={{ textAlign: 'center' }}>
+            We flagged a possible nearby match for the reviewer. Nothing was merged automatically.
+          </AppText>
+        )}
+        <Button label="Back to map" onPress={() => router.replace('/')} />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        padding: space.lg,
+        paddingBottom: insets.bottom + space.xxl,
+        gap: space.lg,
+      }}
+    >
+      <View style={{ gap: space.xs }}>
+        <AppText variant="display">Add a venue</AppText>
+        <AppText variant="body" tone="muted">
+          Search once, then confirm the exact spot by moving the pin.
+        </AppText>
+      </View>
+
+      <View style={styles.searchRow}>
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={handleSearch}
+          placeholder="Address or place in Canada"
+          placeholderTextColor={colors.textFaint}
+          maxLength={160}
+          returnKeyType="search"
+          accessibilityLabel="Address or place"
+          style={[
+            styles.input,
+            { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        />
+        <Button label="Search" icon="magnify" onPress={handleSearch} loading={isSearching} />
+      </View>
+
+      <AppText variant="micro" tone="faint">
+        Search is only sent when you press Search. Results © OpenStreetMap contributors.
+      </AppText>
+      {searchError && <AppText tone="alert">{searchError}</AppText>}
+
+      {searchResults.length > 0 && (
+        <View style={[styles.resultList, { borderColor: colors.border }]}>
+          {searchResults.map((result) => (
+            <PressableSurface
+              key={result.id}
+              onPress={() => chooseResult(result)}
+              accessibilityLabel={`Use ${result.label}`}
+            >
+              <View style={[styles.result, { borderBottomColor: colors.border }]}>
+                <MaterialCommunityIcons name="map-marker-outline" size={20} color={colors.info} />
+                <AppText variant="caption" style={{ flex: 1 }}>
+                  {result.label}
+                </AppText>
+              </View>
+            </PressableSurface>
+          ))}
+        </View>
+      )}
+
+      <View style={[styles.mapFrame, { borderColor: colors.border }]}>
+        <VenueMap
+          region={region}
+          markers={marker}
+          colorScheme={scheme}
+          onPressCoordinate={movePin}
+          onMarkerDragEnd={(_id, coordinate) => movePin(coordinate)}
+        />
+      </View>
+      <AppText variant="caption" tone="muted">
+        Tap the map or drag the pin to adjust it. Final coordinates: {pin.latitude.toFixed(6)},{' '}
+        {pin.longitude.toFixed(6)}
+      </AppText>
+
+      {!duplicateCheckAccepted ? (
+        <View
+          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
+          <AppText variant="heading">Is it one of these?</AppText>
+          <AppText variant="caption" tone="muted">
+            These are all existing venues within {DUPLICATE_DISTANCE_METRES.submissionPrevention}{' '}
+            metres of your pin.
+          </AppText>
+          {nearby.isPending ? (
+            <ActivityIndicator color={colors.live} />
+          ) : nearby.isError ? (
+            <AppText tone="alert">Nearby venues could not be checked. Try again.</AppText>
+          ) : nearby.data?.length ? (
+            nearby.data.map((venue) => (
+              <PressableSurface
+                key={venue.venue_id}
+                onPress={() => router.push(`/venue/${venue.venue_id}`)}
+                accessibilityLabel={`Open existing venue ${venue.name}`}
+              >
+                <View style={styles.nearbyRow}>
+                  <MaterialCommunityIcons name="map-marker" size={20} color={colors.soon} />
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="bodyStrong">{venue.name}</AppText>
+                    <AppText variant="caption" tone="muted">
+                      {Math.round(venue.distance_m)} m away
+                    </AppText>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+                </View>
+              </PressableSurface>
+            ))
+          ) : (
+            <AppText variant="caption" tone="muted">
+              No existing venue is within {DUPLICATE_DISTANCE_METRES.submissionPrevention} metres.
+            </AppText>
+          )}
+          <Button
+            label="None of these — continue"
+            onPress={() => setDuplicateCheckAccepted(true)}
+            disabled={nearby.isPending || nearby.isError}
+          />
+        </View>
+      ) : (
+        <View style={{ gap: space.lg }}>
+          <View style={{ gap: space.sm }}>
+            <AppText variant="heading">Venue details</AppText>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              maxLength={120}
+              placeholder="Venue name"
+              placeholderTextColor={colors.textFaint}
+              accessibilityLabel="Venue name"
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            />
+            <TextInput
+              value={address}
+              onChangeText={setAddress}
+              maxLength={240}
+              placeholder="Address (optional)"
+              placeholderTextColor={colors.textFaint}
+              accessibilityLabel="Address"
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            />
+          </View>
+
+          <View style={{ gap: space.sm }}>
+            <AppText variant="heading">Sports</AppText>
+            <View style={styles.chipRow}>
+              {(sports.data ?? [])
+                .filter((sport) => sport.is_active)
+                .map((sport) => (
+                  <Chip
+                    key={sport.id}
+                    label={sport.name}
+                    icon={sportIcon(sport.slug) as IconName}
+                    selected={sportIds.includes(sport.id)}
+                    onPress={() =>
+                      setSportIds((current) =>
+                        current.includes(sport.id)
+                          ? current.filter((id) => id !== sport.id)
+                          : [...current, sport.id],
+                      )
+                    }
+                  />
+                ))}
+            </View>
+          </View>
+
+          <View style={{ gap: space.sm }}>
+            <AppText variant="heading">Setting</AppText>
+            <View style={styles.chipRow}>
+              {(['outdoor', 'indoor', 'unknown'] as const).map((value) => (
+                <Chip
+                  key={value}
+                  label={
+                    value === 'unknown' ? 'Not sure' : value === 'indoor' ? 'Indoor' : 'Outdoor'
+                  }
+                  selected={indoorState === value}
+                  onPress={() => setIndoorState(value)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {!session && (
+            <AppText variant="caption" tone="soon">
+              You’ll need to sign in before submitting this venue.
+            </AppText>
+          )}
+          {validationError && <AppText tone="alert">{validationError}</AppText>}
+          {submitVenue.isError && <AppText tone="alert">{submitVenue.error.message}</AppText>}
+          <Button
+            label={session ? 'Submit for review' : 'Sign in to submit'}
+            icon={session ? 'send' : 'login'}
+            onPress={handleSubmit}
+            loading={submitVenue.isPending}
+          />
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  input: {
+    minHeight: 48,
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.lg,
+    paddingHorizontal: space.lg,
+    fontSize: 15,
+  },
+  resultList: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  result: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    padding: space.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  mapFrame: {
+    height: 320,
+    overflow: 'hidden',
+    borderRadius: radius.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.xl,
+    padding: space.lg,
+    gap: space.md,
+    ...elevation.card,
+  },
+  nearbyRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  successScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: space.xxl,
+    gap: space.lg,
+  },
+});

@@ -22,6 +22,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(auth)" options={{ presentation: 'modal' }} />
           <Stack.Screen name="venue/[venueId]" options={{ headerShown: true, title: 'Venue' }} />
+          <Stack.Screen name="session/[sessionId]" options={{ headerShown: false }} />
           <Stack.Screen
             name="check-in/[venueId]"
             options={{ headerShown: true, title: 'Check in', presentation: 'modal' }}

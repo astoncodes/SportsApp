@@ -1,5 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
+import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { palettes } from '../../theme/tokens';
@@ -22,18 +23,28 @@ export default function VenueMap({
   region,
   markers,
   onSelectMarker,
+  onMarkerDragEnd,
+  onPressCoordinate,
   onRegionChange,
   userLocation,
   colorScheme,
   style,
 }: VenueMapProps) {
   const colors = palettes[colorScheme];
+  const mapRef = useRef<MapView | null>(null);
+  const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
+
+  useEffect(() => {
+    mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta, longitudeDelta }, 200);
+  }, [latitude, longitude, latitudeDelta, longitudeDelta]);
 
   return (
     <View style={[StyleSheet.absoluteFill, style]}>
       <MapView
+        ref={mapRef}
         style={StyleSheet.absoluteFill}
         initialRegion={region}
+        onPress={(event) => onPressCoordinate?.(event.nativeEvent.coordinate)}
         onRegionChangeComplete={onRegionChange}
         showsUserLocation={Boolean(userLocation)}
         showsMyLocationButton={false}
@@ -56,6 +67,8 @@ export default function VenueMap({
             key={marker.id}
             coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
             onPress={() => onSelectMarker?.(marker.id)}
+            draggable={marker.draggable}
+            onDragEnd={(event) => onMarkerDragEnd?.(marker.id, event.nativeEvent.coordinate)}
             title={marker.label}
             tracksViewChanges={false}
           >

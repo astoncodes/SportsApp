@@ -1,0 +1,157 @@
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { EmptyState, Skeleton } from '../../components/ui/activity';
+import { AppText, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
+import { relativeTime, timeOfDay, weekdayName } from '../../lib/format';
+import { elevation, radius, space, usePalette } from '../../theme';
+import { useCommunityFeed } from './api';
+
+function ClipPlayer({ url }: { url: string }) {
+  const player = useVideoPlayer(url, (instance) => {
+    instance.loop = true;
+  });
+  return (
+    <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls />
+  );
+}
+
+export function FeedScreen() {
+  const colors = usePalette();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const feed = useCommunityFeed();
+
+  return (
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={{
+        paddingTop: insets.top + space.lg,
+        paddingBottom: insets.bottom + 96,
+      }}
+      refreshControl={
+        <RefreshControl refreshing={feed.isRefetching} onRefresh={() => feed.refetch()} />
+      }
+    >
+      <View style={styles.heading}>
+        <AppText variant="display">Around you</AppText>
+        <AppText variant="body" tone="muted">
+          Sessions, photos and quick clips from the local sports community.
+        </AppText>
+      </View>
+
+      {feed.isPending ? (
+        <View style={styles.list}>
+          {[0, 1].map((key) => (
+            <Skeleton key={key} height={390} />
+          ))}
+        </View>
+      ) : feed.data?.length ? (
+        <View style={styles.list}>
+          {feed.data.map((post) => {
+            const firstMedia = post.media[0];
+            return (
+              <View
+                key={post.id}
+                style={[
+                  styles.card,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  elevation.card,
+                ]}
+              >
+                <View style={styles.authorRow}>
+                  <View style={[styles.avatar, { backgroundColor: colors.liveSoft }]}>
+                    <AppText variant="bodyStrong" tone="live">
+                      {post.authorName.slice(0, 1).toUpperCase()}
+                    </AppText>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <AppText variant="bodyStrong">{post.authorName}</AppText>
+                    <AppText variant="caption" tone="muted">
+                      {relativeTime(post.created_at)}
+                    </AppText>
+                  </View>
+                  <Chip label={post.sportName} icon={sportIcon(post.sportSlug)} compact />
+                </View>
+
+                {firstMedia && (
+                  <View style={styles.mediaFrame}>
+                    {firstMedia.kind === 'video' ? (
+                      <ClipPlayer url={firstMedia.url} />
+                    ) : (
+                      <Image
+                        source={{ uri: firstMedia.url }}
+                        style={StyleSheet.absoluteFill}
+                        contentFit="cover"
+                        transition={180}
+                      />
+                    )}
+                  </View>
+                )}
+
+                <View style={styles.copy}>
+                  {post.caption && <AppText variant="body">{post.caption}</AppText>}
+                  <PressableSurface
+                    onPress={() => router.push(`/session/${post.session.id}`)}
+                    accessibilityLabel={`Open ${post.sessionTitle}`}
+                  >
+                    <View style={[styles.sessionCard, { backgroundColor: colors.surfaceMuted }]}>
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <AppText variant="bodyStrong">{post.sessionTitle}</AppText>
+                        <AppText variant="caption" tone="muted">
+                          {post.venueName} · {weekdayName(post.session.starts_at)} at{' '}
+                          {timeOfDay(post.session.starts_at)}
+                        </AppText>
+                      </View>
+                      <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={22}
+                        color={colors.textMuted}
+                      />
+                    </View>
+                  </PressableSurface>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.empty}>
+          <EmptyState
+            icon="image-multiple-outline"
+            title="No moments nearby yet"
+            body="Join a scheduled session, then share the first photo or short clip."
+          />
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  heading: { paddingHorizontal: space.lg, gap: 3, marginBottom: space.lg },
+  list: { paddingHorizontal: space.md, gap: space.lg },
+  card: { borderRadius: radius.xl, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, padding: space.md },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaFrame: { height: 270, backgroundColor: '#D9E1DA' },
+  copy: { padding: space.md, gap: space.md },
+  sessionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: space.md,
+    borderRadius: radius.lg,
+    gap: space.sm,
+  },
+  empty: { padding: space.lg },
+});

@@ -87,6 +87,7 @@ const config: ExpoConfig = {
 
   plugins: [
     'expo-router',
+    'expo-video',
     [
       'expo-splash-screen',
       {
@@ -108,6 +109,9 @@ const config: ExpoConfig = {
   extra: {
     supabaseUrl: read('EXPO_PUBLIC_SUPABASE_URL'),
     supabaseAnonKey: read('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+    // Kept configurable so public Nominatim can be replaced by a proxy or
+    // another provider without changing feature code.
+    nominatimUrl: read('EXPO_PUBLIC_NOMINATIM_URL') || 'https://nominatim.openstreetmap.org',
   },
 };
 

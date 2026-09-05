@@ -54,6 +54,8 @@ export default function VenueMap({
   region,
   markers,
   onSelectMarker,
+  onMarkerDragEnd,
+  onPressCoordinate,
   onRegionChange,
   userLocation,
   colorScheme,
@@ -65,12 +67,16 @@ export default function VenueMap({
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const userLayerRef = useRef<L.LayerGroup | null>(null);
   const onRegionChangeRef = useRef(onRegionChange);
+  const onPressCoordinateRef = useRef(onPressCoordinate);
   // Kept in an effect rather than assigned during render: the map's moveend
   // handler is registered once and needs the latest callback without the
   // subscription being torn down on every parent render.
   useEffect(() => {
     onRegionChangeRef.current = onRegionChange;
   }, [onRegionChange]);
+  useEffect(() => {
+    onPressCoordinateRef.current = onPressCoordinate;
+  }, [onPressCoordinate]);
 
   // Create once. Re-creating the map on prop changes would reset zoom and pan
   // every time a check-in landed.
@@ -97,6 +103,12 @@ export default function VenueMap({
         longitude: centre.lng,
         latitudeDelta: Math.abs(bounds.getNorth() - bounds.getSouth()),
         longitudeDelta: Math.abs(bounds.getEast() - bounds.getWest()),
+      });
+    });
+    map.on('click', (event) => {
+      onPressCoordinateRef.current?.({
+        latitude: event.latlng.lat,
+        longitude: event.latlng.lng,
       });
     });
 
@@ -145,11 +157,19 @@ export default function VenueMap({
         keyboard: true,
         title: marker.label,
         alt: marker.label,
+        draggable: marker.draggable,
       })
         .on('click', () => onSelectMarker?.(marker.id))
+        .on('dragend', (event) => {
+          const coordinate = (event.target as L.Marker).getLatLng();
+          onMarkerDragEnd?.(marker.id, {
+            latitude: coordinate.lat,
+            longitude: coordinate.lng,
+          });
+        })
         .addTo(layer);
     }
-  }, [markers, colorScheme, onSelectMarker]);
+  }, [markers, colorScheme, onMarkerDragEnd, onSelectMarker]);
 
   useEffect(() => {
     const layer = userLayerRef.current;

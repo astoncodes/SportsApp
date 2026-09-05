@@ -21,6 +21,7 @@ export const supabase = createClient<Database>(env.supabaseUrl, env.supabaseAnon
     storage: secureStorage,
     persistSession: true,
     autoRefreshToken: true,
+    flowType: 'pkce',
     // A mobile app receives its auth callback through a deep link, not through
     // a URL the bundle happens to be loaded at.
     detectSessionInUrl: false,

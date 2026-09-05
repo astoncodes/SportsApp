@@ -44,8 +44,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
         if (isActive) setIsLoading(false);
       });
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
+      if (event === 'SIGNED_OUT') queryClient.clear();
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        void queryClient.invalidateQueries({ queryKey: ['account-profile'] });
+        void queryClient.invalidateQueries({ queryKey: ['account-sports'] });
+      }
     });
 
     return () => {

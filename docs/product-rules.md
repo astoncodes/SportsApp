@@ -11,9 +11,10 @@ migrations and database functions. The database is the authority.
 ## The product in one sentence
 
 An app that shows where pickup sports are active now, lets players broadcast a short-lived on-site
-check-in, and lists trustworthy recurring runs nearby.
+check-in, lists trustworthy recurring runs nearby, and helps each dated session stay connected.
 
-It is a **presence and discovery tool** — not a chat app, not an event-management platform.
+It remains a **presence and discovery tool**. Social features attach to real dated sessions rather
+than creating a general-purpose social graph.
 
 The loop: open the app → see nearby venues and current activity for your sports → open a venue →
 check in if you're physically there, or see an upcoming run → the check-in disappears on its own
@@ -97,6 +98,18 @@ Weekly series only in v1 — not arbitrary recurrence rules.
 Runs go stale the same way check-ins do. A weekly run from an organizer who lost interest misleads
 people for months, so a series must be renewed rather than living forever.
 
+## Session community
+
+- A recurring run is a template. Membership, chat, posts, and media attach to one dated occurrence.
+- A player explicitly joins an occurrence; the organizer is automatically a member.
+- Session chat is readable and writable only by joined participants.
+- Session posts and their media are publicly readable in the nearby regional feed.
+- Only joined participants can publish a post for that session.
+- Images and short videos are supported. Video clips are capped at **30 seconds** and uploads at
+  **25 MB**. The database stores ownership and media metadata; objects live in the dedicated
+  `session-media` bucket.
+- There are no private direct messages, followers, likes, or comments in this phase.
+
 ---
 
 ## User-submitted venues
@@ -141,11 +154,12 @@ distinct location-gated check-ins have to be designed from real usage data. Pick
 venue map and list · sport filters · venue detail with current activity · location-gated check-in,
 checkout, extension, auto-expiry · optional note and party size · weekly runs with renewal · OSM
 import for Charlottetown · admin import review · user submissions with minimal approval ·
-duplicate prevention and safe merges · realtime refresh · migrations, seed, generated types,
-database tests.
+duplicate prevention and safe merges · dated-session membership and private session chat · public
+regional session feed with photos and 30-second clips · realtime refresh · migrations, seed,
+generated types, database tests.
 
-**Out:** friends/followers/squads/feeds · direct messages or venue chat · photos, video,
-highlights, comments · skill ratings and matchmaking · tournament brackets · push notifications ·
+**Out:** friends/followers/squads · direct messages or venue-wide chat · likes and comments · skill
+ratings and matchmaking · tournament brackets · push notifications ·
 background location · public location history · automated verification thresholds · automatic
 merging · automatic OSM-to-published reconciliation · multi-language · payments.
 
@@ -177,7 +191,7 @@ Agents and contributors must **stop and ask** rather than silently choosing.
 | Decision                     | Recommended default                                                               | Needed by            |
 | ---------------------------- | --------------------------------------------------------------------------------- | -------------------- |
 | ~~App name and identifiers~~ | **Decided: Drop In.** slug `drop-in`, scheme `dropin://`, bundle `com.dropin.app` | ~~store builds~~     |
-| Auth method                  | email one-time code first, social later                                           | Phase 2              |
+| ~~Auth method~~              | **Decided: Supabase passwordless email magic links; social later**                | ~~Phase 2~~          |
 | Browse without an account    | allow read-only browsing                                                          | Phase 2              |
 | Initial public sports        | basketball, soccer, volleyball, pickleball, tennis                                | Charlottetown launch |
 | Check-in identity display    | display name + avatar while active                                                | Phase 3              |

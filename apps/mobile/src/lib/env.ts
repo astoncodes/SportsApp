@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 type Extra = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
+  nominatimUrl?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
@@ -32,4 +33,5 @@ function required(value: string | undefined, name: string): string {
 export const env = {
   supabaseUrl: required(extra.supabaseUrl, 'EXPO_PUBLIC_SUPABASE_URL'),
   supabaseAnonKey: required(extra.supabaseAnonKey, 'EXPO_PUBLIC_SUPABASE_ANON_KEY'),
+  nominatimUrl: extra.nominatimUrl || 'https://nominatim.openstreetmap.org',
 } as const;
