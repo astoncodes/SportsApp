@@ -22,6 +22,5 @@ uv.lock
 # SQL: prettier has no Postgres parser and would mangle these.
 supabase/migrations/
 supabase/tests/
-supabase/seed.sql
 
 assets/

@@ -16,7 +16,7 @@ function required(value: string | undefined, name: string): string {
     throw new Error(
       `Missing ${name}.\n\n` +
         'Copy .env.example to .env at the repository root and fill it in.\n' +
-        'Local Supabase prints the values you need when you run `npm run db:start`.',
+        'Copy the project URL and publishable key from your Supabase dashboard.',
     );
   }
   return value;

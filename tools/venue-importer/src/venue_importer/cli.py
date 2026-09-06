@@ -84,8 +84,8 @@ def _run_normalize_sports(args: argparse.Namespace) -> int:
     """Resolve a tag using the seeded alias map.
 
     Phase 0 has no database connection, so this uses a small built-in map that
-    mirrors supabase/seed.sql. Phase 1 replaces it with a real query so the two
-    can never drift.
+    mirrors the reference-data migration. Phase 1 replaces it with a real query
+    so the two can never drift.
     """
     alias_map: dict[str, str | None] = {
         "basketball": "basketball",

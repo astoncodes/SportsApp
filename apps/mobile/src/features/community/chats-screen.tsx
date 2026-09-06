@@ -67,7 +67,7 @@ export function ChatsScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 3 }}>
                   <AppText variant="heading" numberOfLines={1}>
-                    {chat.title}
+                    {chat.cancelled_at ? `Cancelled · ${chat.title}` : chat.title}
                   </AppText>
                   <AppText variant="caption" tone="muted" numberOfLines={1}>
                     {chat.lastMessage?.body ??

@@ -284,6 +284,11 @@ export default function VenueScreen() {
           Slice D; until the RPC exists, showing a "Check in" button here would
           be a button that lies. */}
       <View style={{ gap: space.sm }}>
+        <Button
+          label="Organize a run"
+          icon="calendar-plus"
+          onPress={() => router.push({ pathname: '/run/new', params: { venueId } })}
+        />
         {session ? (
           <View style={[styles.notice, { backgroundColor: colors.surfaceMuted }]}>
             <AppText variant="caption" tone="muted">

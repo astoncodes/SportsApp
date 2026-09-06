@@ -1,220 +1,252 @@
 # Drop In
 
-Find where pickup games are happening right now, check in while you're there, and see the
-recurring runs near you. Launch region: **Charlottetown, Prince Edward Island**.
+Find and organize pickup sports sessions. Create a session at a dropped pin or
+reviewed venue, join its private chat, and share photos or short clips. Organizers
+can edit or cancel individual sessions, and participants can leave and rejoin.
 
-Named for what rec centres already call this: drop-in soccer, drop-in hockey, drop-in ball.
-Sport-neutral, and it needs no explaining to anyone who already plays.
+The apps run on your computer and connect to **hosted Supabase** for authentication,
+database access and media storage. **Docker is not required.**
 
-This repo is at **Phase 0** — repository and database foundation. See [Build status](#build-status)
-for exactly what works today and what doesn't.
+## Quick start with this checkout
 
----
-
-## Prerequisites
-
-| Tool       | Version                     | Why                               | Install                                                           |
-| ---------- | --------------------------- | --------------------------------- | ----------------------------------------------------------------- |
-| **Node**   | 24.8.0 (pinned in `.nvmrc`) | Both apps and the tooling         | `nvm install`                                                     |
-| **npm**    | 11+                         | Workspaces                        | ships with Node                                                   |
-| **Docker** | running                     | Local Supabase runs in containers | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| **uv**     | 0.5+                        | Python importer                   | `brew install uv`                                                 |
-
-Docker must actually be _running_, not just installed — `docker info` should succeed.
-Allow it ~4 GB of memory; the Supabase stack is several containers.
-
-The Supabase CLI is **not** a global install. It's a dev dependency of this repo, so everyone
-gets the same version.
-
----
-
-## First run
+If your root `.env` is already configured, keep it. From the repository root:
 
 ```bash
-nvm use                 # or: nvm install
-npm install             # installs all workspaces
-npm run db:start        # starts local Supabase (first run pulls images — several minutes)
+nvm install
+nvm use
+npm ci
+npm run dev:web --workspace apps/mobile -- --port 8081
 ```
 
-`db:start` prints your local credentials. Copy `.env.example` to `.env` and fill it in:
+Open **http://localhost:8081**. Leave that terminal running. Your `.env` already
+contains the connection settings if you completed the project setup earlier.
+Do not replace it with the empty example file.
+
+To run the admin app, open a second terminal at the repository root:
+
+```bash
+npm run dev --workspace apps/admin -- --port 5173 --strictPort
+```
+
+Open **http://localhost:5173**. An account needs an admin grant to access admin tools.
+See [the admin guide](docs/admin-app.md) for venue review, management, audit history,
+and choosing an admin account later.
+Press `Ctrl+C` in the corresponding terminal to stop either app.
+
+## First-time setup on a new computer
+
+### 1. Install the prerequisites
+
+- Node.js **24.8.0**, pinned in `.nvmrc`. With nvm, use `nvm install` and `nvm use`.
+- npm, included with Node.js.
+- Access to the hosted Supabase project and its project URL/publishable key.
+- Optional: [uv](https://docs.astral.sh/uv/) for Python importer tools and the full test suite.
+
+Run `npm ci` from the repository root to install all JavaScript workspaces.
+You do not need the Supabase CLI login or a database password just to run the apps.
+
+### 2. Configure the root `.env`
+
+For a new checkout **without an existing `.env`**:
 
 ```bash
 cp .env.example .env
 ```
 
-| Variable                                                  | Value from `db:start`                                        |
-| --------------------------------------------------------- | ------------------------------------------------------------ |
-| `EXPO_PUBLIC_SUPABASE_URL`, `VITE_SUPABASE_URL`           | `API_URL`                                                    |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `VITE_SUPABASE_ANON_KEY` | `ANON_KEY`                                                   |
-| `SUPABASE_DB_URL`                                         | `DB_URL`                                                     |
-| `OVERPASS_USER_AGENT`                                     | your own — real contact details, required by Overpass policy |
+Open the Supabase dashboard for your project. Copy its **Project URL** and
+**publishable key** from the project connection/API settings. An existing legacy
+`anon` key also works. Both apps must point to the same intended project:
 
-`EXPO_PUBLIC_NOMINATIM_URL` already defaults to the public Nominatim endpoint.
-Venue search is explicit rather than autocomplete and is intended only for
-occasional user-submitted locations; point this setting at a cached proxy or a
-replacement provider before traffic outgrows the public-service policy.
+```dotenv
+# Mobile app and its web preview
+EXPO_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 
-Then install the Python side and confirm everything works:
+# Admin app — use the same URL and publishable key
+VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+
+# Geoapify: location search and light/dark web map tiles
+EXPO_PUBLIC_GEOAPIFY_API_KEY=YOUR_GEOAPIFY_KEY
+
+# Needed for your own Android builds; not required for the web preview
+GOOGLE_MAPS_ANDROID_API_KEY=YOUR_RESTRICTED_ANDROID_MAPS_KEY
+```
+
+The variable names still say `ANON_KEY`, but accept a Supabase publishable key.
+Keep these names exactly as shown. Expo and Vite both read the repository-root
+`.env`; you do not need a second copy inside either app.
+
+The app connects through Supabase's HTTPS APIs. **`SUPABASE_DB_URL` is not needed
+for app startup.** That privileged Postgres connection is only for maintenance
+scripts and the importer. Never put a database password or service-role key in
+`EXPO_PUBLIC_*`, `VITE_*`, or application code. `.env` is ignored by Git.
+
+Geoapify is used for search and web tiles. Native iOS uses Apple Maps; native
+Android uses Google Maps. Keep the optional CARTO setting blank for this setup.
+The Android key must be restricted to Maps SDK for Android and, before distribution,
+the app package `com.dropin.app` with the correct signing SHA-1.
+
+After changing `.env`, stop and restart the relevant development server, then
+reload the browser. Android map-key changes require a new native build.
+
+### 3. Confirm the database is prepared
+
+For the existing configured Drop In project, migrations have already been applied;
+you can proceed to startup. An empty venue list does not mean the connection failed:
+you can create a session using a dropped pin without importing any venues.
+
+For a **new Supabase project**, a maintainer must apply the repository migrations:
 
 ```bash
-cd tools/venue-importer && uv sync && cd ../..
-npm run check           # format, lint, typecheck, all tests
-npm run db:test         # 55 database tests
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push --dry-run
 ```
 
-> **Testing on a phone or simulator?** `127.0.0.1` means _the device itself_, not your Mac.
-> Use your machine's LAN IP in `EXPO_PUBLIC_SUPABASE_URL`, e.g. `http://192.168.1.20:54321`.
-
-### Seeing the app
-
-**From the repository root:**
+Check that the linked project and pending migrations are correct, then apply them:
 
 ```bash
-npm run mobile -- --web    # opens in a browser, no Xcode needed
-npm run mobile             # then press i / a for a simulator, or scan the QR code
-npm run admin              # http://localhost:5173
+npx supabase db push
+npm run db:types
 ```
 
-**From inside an app directory**, `npm run dev` works in either one
-(`apps/mobile` also has `dev:web`). The `mobile` and `admin` scripts above only
-exist at the root — running them from a workspace gives
-`Missing script: "mobile"`, because npm is reading that workspace's own
-`package.json`.
+The migrations create tables, access policies, reference data and session media
+storage. Auth delivery and redirect settings are configured separately in the
+hosted dashboard. Automatic seeding is disabled. Do not load the synthetic data
+from `supabase/tests/fixtures/seed.sql` into the app project.
 
-The web target works because `src/lib/secure-storage.web.ts` swaps the keychain for
-`localStorage` — `expo-secure-store` has no web implementation and would otherwise throw the
-moment Supabase reads a session. Tokens are plain text in a browser, so treat web as a
-development convenience, not an equivalent to the native app.
+### 4. Configure email sign-in callbacks
 
-An iOS simulator needs full **Xcode**, not just Command Line Tools
-(`xcode-select -p` should print a path inside `Xcode.app`).
+In the hosted Supabase dashboard, open **Authentication → URL Configuration**.
+For local web development, set the Site URL to `http://localhost:8081` and allow:
 
-### Mobile accounts
-
-The mobile app uses Supabase Auth passwordless email links with PKCE. Open the
-Profile tab and choose **Sign in or create account**. During local development,
-the message is captured at <http://127.0.0.1:54324>; click its sign-in link to
-return to the app, choose a display name and sports, and complete onboarding.
-
-Native sessions are stored in the device keychain/keystore. Expo web uses
-`localStorage` only as a development convenience. For a hosted Supabase project,
-add the production web callback and `dropin://callback` to Auth's redirect URL
-allowlist before testing release builds.
-
----
-
-## Everyday commands
-
-| Command                               | Does                                                                        |
-| ------------------------------------- | --------------------------------------------------------------------------- |
-| `npm run check`                       | **Format, lint, typecheck and test everything.** The one command CI runs.   |
-| `npm run mobile`                      | Start the Expo app                                                          |
-| `npm run admin`                       | Start the admin review app (http://localhost:5173)                          |
-| `npm run db:start` / `db:stop`        | Start / stop local Supabase                                                 |
-| `npm run db:reset`                    | Rebuild the database from migrations + seed. Destroys local data.           |
-| `npm run db:test`                     | pgTAP database tests                                                        |
-| `npm run db:types`                    | Regenerate TypeScript types from the schema — **run after every migration** |
-| `npm run db:admin -- you@example.com` | Grant admin access                                                          |
-| `npm run check:bundles`               | Build both clients and verify no server credential leaked in                |
-| `npm run importer -- --help`          | Venue importer CLI                                                          |
-
-Local Supabase Studio: <http://127.0.0.1:54323> · Emails (Mailpit): <http://127.0.0.1:54324>
-
----
-
-## Getting into the admin app
-
-The admin app is gated on a row in `admin_users`, and **there is no API path that creates one** —
-not for players, not even for other admins. That's deliberate: promotion requires a privileged
-database connection and a person doing it on purpose.
-
-1. `npm run admin`, enter your email, submit
-2. Open <http://127.0.0.1:54324> (Mailpit) and click the sign-in link — nothing leaves your machine
-3. `npm run db:admin -- you@example.com`
-4. Sign in again. You should now see **two** regions; a non-admin sees only Charlottetown.
-
-If a sign-in link lands on a dead port, check `additional_redirect_urls` in
-`supabase/config.toml`. Supabase only honours redirect targets on that exact-match allowlist and
-silently falls back to `site_url` otherwise — and `localhost` and `127.0.0.1` count as different
-entries even though they reach the same machine.
-
-That second region (Halifax, `is_published = false`) is the importer's smoke test: it proves the
-importer carries no Charlottetown-specific constants, without creating a review burden.
-
----
-
-## Layout
-
-```
-apps/mobile/          Expo + expo-router + TypeScript
-  app/                Routes only — no data access, no business rules
-  src/                features/, lib/, providers/, theme/, components/
-apps/admin/           Vite + React review tool
-packages/
-  database-types/     GENERATED from the schema. Never hand-edit.
-  shared/             Small cross-app constants that mirror database rules
-tools/venue-importer/ Python CLI: Overpass -> normalize -> staging
-supabase/
-  migrations/         Schema. The source of truth for business rules.
-  tests/              pgTAP, including RLS from every caller perspective
-  seed.sql            Sports, OSM aliases, regions
-docs/                 architecture.md, product-rules.md, decisions/
+```text
+http://localhost:8081/callback
+http://127.0.0.1:8081/callback
+http://localhost:5173
+http://127.0.0.1:5173
+dropin://callback
 ```
 
-`packages/ui` deliberately does not exist yet — it gets created when there's real reuse, not
-in anticipation of it.
+The mobile web app returns to `/callback`; the admin app returns to its origin.
+Use the matching callback if you run on a different host or port. For deployed
+apps, use your production Site URL and explicitly allow their callback URLs too.
 
----
+Email links arrive in your real inbox. Configure custom SMTP before inviting
+people outside the Supabase project team. There is no local test-email inbox.
+See [Supabase email delivery](https://supabase.com/docs/guides/auth/auth-smtp).
 
-## How this thing is put together
+### 5. Start the app and verify the connection
 
-Three ideas worth knowing before you change anything:
+```bash
+npm run dev:web --workspace apps/mobile -- --port 8081
+```
 
-**Postgres owns the rules.** Merge logic, duplicate detection, and check-in validation live in
-database functions, not in the clients. Two clients reimplementing the same rule is two clients
-that will disagree eventually.
+At http://localhost:8081:
 
-**RLS and GRANTs are both load-bearing.** Grants decide which _operations_ a role may attempt;
-RLS decides which _rows_. `profiles` needs both — every row is selectable, but a column-level
-grant is what stops one player reading another's home region. Every public table has RLS on, and
-a database test asserts that so a future table can't quietly ship without it.
+1. Open Profile and sign in using your email link.
+2. Complete onboarding if prompted.
+3. Choose Create session or + Session and place a pin.
+4. Save a future session, open its chat and send a message.
+5. Refresh and check that the session/message remains. Optionally share a photo.
 
-**Nothing reaches published venues without a human.** Imports land in staging with raw OSM tags
-preserved. Deduplication _proposes_; people decide. There is no automatic merge anywhere.
+This checks authentication and persisted database writes. A successful photo
+upload also checks media storage. No additional backend process needs starting.
 
-Details in [docs/architecture.md](docs/architecture.md) and
-[docs/product-rules.md](docs/product-rules.md).
+## Testing on a phone
 
-Production service accounts, API keys, deployment steps, and launch checks are
-tracked in [docs/production-setup-todo.md](docs/production-setup-todo.md).
+```bash
+npm run mobile
+```
 
----
+Scan the Expo QR code with Expo Go, with your phone and computer on the same
+network. Keep the Supabase URL as the hosted HTTPS URL; do not change it to your
+computer's LAN address. The LAN address is only for reaching the Expo development
+server.
 
-## Build status
+Expo Go's auth callback differs from a native app build: allow the exact running
+Expo callback URL in Supabase if testing sign-in there. A native build uses the
+configured `dropin` scheme. Google maps in your own Android build need the restricted
+key and matching signing fingerprint. Physical-device verification remains part
+of the [release checklist](docs/release-checklist.md).
 
-**Phase 0 — done.**
+## Optional admin and maintenance tools
 
-- Monorepo, workspaces, pinned Node, committed lockfile
-- Local Supabase from committed migrations and seed; PostGIS enabled by migration
-- Schema: `regions`, `sports`, `osm_sport_aliases`, `profiles`, `profile_sports`, `admin_users`
-- RLS + explicit grants on every table; 55 pgTAP tests covering anonymous, owner, other-user
-  and admin perspectives
-- Generated TypeScript types, with CI failing on drift
-- Expo app: auth and tab route placeholders, bundles clean
-- Admin app: email sign-in, admin-gated screen
-- Python importer: working `--help`, tested sport-tag normalizer (34 tests)
-- CI running everything; a credential scanner that self-tests
+To grant admin access, the user must first have an account. Set server-only
+`SUPABASE_DB_URL` to the correct hosted connection string from Supabase **Connect**,
+then run:
 
-**Not built yet** — venue tables, the importer's actual import, the review queue, check-ins,
-runs, submissions. Every placeholder screen names the phase that fills it in. See the build
-sequence in [docs/architecture.md](docs/architecture.md).
+```bash
+npm run db:admin -- admin@example.com
+```
 
----
+This grants real privileges in the selected database. It is not required for
+normal players or for starting the mobile app.
 
-## Contributing notes
+To install the importer dependencies and inspect its commands:
 
-- Migrations are the source of truth. Changed a rule? Change the migration and add a test.
-- Run `npm run db:types` after every migration and commit the result.
-- Never put the service-role key or a database URL in a `VITE_*` or `EXPO_PUBLIC_*` variable.
-  `npm run check:bundles` will catch you, but don't rely on it.
-- Working with an AI agent on this repo? Read [CLAUDE.md](CLAUDE.md) first.
+```bash
+cd tools/venue-importer
+uv sync --locked
+uv run venue-importer --help
+```
+
+For schema type generation, `SUPABASE_PROJECT_REF` selects a hosted project or is
+inferred from `EXPO_PUBLIC_SUPABASE_URL`. The script uses `SUPABASE_ACCESS_TOKEN`
+or the saved CLI token. Keep tokens server-side; they are not app configuration.
+
+## Checks and CI
+
+Run these from the repository root. The full check needs uv as well as Node:
+
+```bash
+npm run check          # formatting, lint, types, JS and Python unit tests
+npm run test:maps      # Geoapify adapter checks; no live API requests
+npm run check:bundles  # builds and server-credential scanning
+npm run db:types       # read hosted schema and regenerate TypeScript types
+```
+
+The automatic **App checks** workflow runs checks/builds with offline placeholder
+configuration. It requires neither containers nor hosted database credentials.
+
+Database tests are separate maintenance checks, not a prerequisite to running the
+app. Prepare an isolated hosted test project with migrations and synthetic fixtures,
+set `SUPABASE_TEST_PROJECT_REF` and `SUPABASE_TEST_DB_URL`, then run `npm run db:test`.
+The runner rejects the configured app project and never resets or seeds a database.
+The optional **Hosted database checks** workflow is triggered manually and requires
+a configured `database-tests` GitHub environment.
+
+The social integration test creates and removes temporary users, sessions and media.
+Use an explicitly selected hosted project matching your `.env`:
+
+```bash
+npm run test:supabase -- --project-ref=YOUR_PROJECT_REF
+```
+
+## Troubleshooting
+
+| Symptom                                    | What to check                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Missing Supabase URL/key                   | Fill in the root`.env` using the exact variable names above; restart the server.                            |
+| Sign-in email never arrives                | Check spam, Supabase Auth logs and SMTP configuration; default delivery is limited to project-team addresses. |
+| Login returns to the wrong page            | Check the exact host, port and callback in Supabase's redirect allowlist.                                     |
+| Empty map or no sessions                   | An empty database is valid. Create a pin session; inspect any displayed network errors separately.            |
+| Search reports authentication/quota errors | Check the Geoapify key, its restrictions and project usage.                                                   |
+| Native Android map is blank                | Check Maps SDK for Android, billing, API key, package/SHA-1 restrictions and rebuild.                         |
+| Port is already in use                     | Use the existing server or stop it before restarting; alternate ports also need matching auth callbacks.      |
+| Missing tables/functions on a new project  | Apply committed migrations to the intended hosted project, then regenerate types.                             |
+
+## Repository layout
+
+- `apps/mobile`: Expo app and web preview.
+- `apps/admin`: Vite admin application.
+- `packages/database-types`: generated Supabase types.
+- `packages/shared`: shared constants mirroring database rules.
+- `tools/venue-importer`: Python importer tooling and tests.
+- `supabase/migrations`: schema source of truth.
+- `supabase/tests`: pgTAP checks and isolated-project fixtures.
+- `docs`: architecture, product rules, decisions and remaining release work.
+
+See [release checklist](docs/release-checklist.md), [architecture](docs/architecture.md),
+and [contributor instructions](CLAUDE.md) for further details.

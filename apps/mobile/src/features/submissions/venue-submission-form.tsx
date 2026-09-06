@@ -3,14 +3,22 @@ import type { IndoorState } from '@dropin/shared';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import VenueMap from '../../components/map/venue-map';
 import type { MapCoordinate, MapRegion } from '../../components/map/types';
 import { AppText, Button, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
-import { searchPlaces } from '../geocoding/nominatim';
-import type { GeocodingResult } from '../geocoding/nominatim';
+import { searchPlaces } from '../geocoding/geoapify';
+import type { GeocodingResult } from '../geocoding/geoapify';
 import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../venues/api';
 import { useSession } from '../../providers/auth-context';
 import { elevation, radius, space, usePalette, useThemeName } from '../../theme';
@@ -186,7 +194,28 @@ export function VenueSubmissionForm() {
       </View>
 
       <AppText variant="micro" tone="faint">
-        Search is only sent when you press Search. Results © OpenStreetMap contributors.
+        Search is only sent when you press Search.{' '}
+        <Text
+          accessibilityRole="link"
+          onPress={() =>
+            void Linking.openURL('https://www.geoapify.com/').catch(() =>
+              setSearchError('Could not open attribution link.'),
+            )
+          }
+        >
+          Powered by Geoapify
+        </Text>
+        {' · '}
+        <Text
+          accessibilityRole="link"
+          onPress={() =>
+            void Linking.openURL('https://www.openstreetmap.org/copyright').catch(() =>
+              setSearchError('Could not open attribution link.'),
+            )
+          }
+        >
+          © OpenStreetMap contributors
+        </Text>
       </AppText>
       {searchError && <AppText tone="alert">{searchError}</AppText>}
 

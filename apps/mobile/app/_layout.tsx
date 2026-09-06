@@ -29,7 +29,7 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="run/new"
-            options={{ headerShown: true, title: 'New run', presentation: 'modal' }}
+            options={{ headerShown: true, title: 'Create session', presentation: 'modal' }}
           />
           <Stack.Screen
             name="venue-submission/new"

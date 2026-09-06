@@ -95,8 +95,8 @@ def load_config(environ: dict[str, str] | None = None) -> Config:
     if not database_url:
         raise ConfigError(
             "SUPABASE_DB_URL is not set.\n"
-            "Copy .env.example to .env and fill it in. For local Supabase:\n"
-            "  SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+            "Copy the hosted connection string from Supabase Connect into .env:\n"
+            "  SUPABASE_DB_URL=postgresql://postgres:YOUR_PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres"
         )
 
     endpoints = (

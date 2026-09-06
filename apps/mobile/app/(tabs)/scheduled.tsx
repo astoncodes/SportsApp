@@ -71,12 +71,20 @@ export default function ScheduledScreen() {
       <View style={{ paddingHorizontal: space.lg, gap: 2 }}>
         <AppText variant="display">Scheduled</AppText>
         <AppText variant="body" tone="muted">
-          Weekly runs near you over the next two weeks.
+          Sports sessions near you over the next two weeks.
         </AppText>
+        <View style={{ marginTop: space.md }}>
+          <Button
+            label="Create session"
+            icon="calendar-plus"
+            onPress={() => router.push('/run/new')}
+          />
+        </View>
       </View>
 
       <ScrollView
         horizontal
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipRow}
         accessibilityLabel="Filter runs by sport"
@@ -194,7 +202,7 @@ export default function ScheduledScreen() {
               body={
                 selectedSportIds.length > 0
                   ? 'Nothing in these sports over the next two weeks. Try clearing the filter.'
-                  : 'Nobody has posted a weekly run near you yet. A run gives people something to turn up to before check-ins take off.'
+                  : 'Create the first session and invite people to play.'
               }
             />
           }

@@ -14,7 +14,7 @@ from venue_importer.config import (
 )
 
 VALID_ENV = {
-    "SUPABASE_DB_URL": "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    "SUPABASE_DB_URL": "postgresql://postgres:test-password@db.example.supabase.co:5432/postgres",
     "OVERPASS_USER_AGENT": "dropin-importer/0.1 (contact: dev@example.test)",
 }
 

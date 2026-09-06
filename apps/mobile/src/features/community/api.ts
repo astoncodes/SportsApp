@@ -33,11 +33,15 @@ function publicMediaUrl(item: SessionMedia) {
 
 async function sessionLabels(sessions: RunSession[]) {
   const seriesIds = [...new Set(sessions.map((item) => item.run_series_id))];
-  const venueIds = [...new Set(sessions.map((item) => item.venue_id))];
+  const venueIds = [
+    ...new Set(sessions.map((item) => item.venue_id).filter((id): id is string => id !== null)),
+  ];
   const sportIds = [...new Set(sessions.map((item) => item.sport_id))];
   const [series, venues, sports] = await Promise.all([
-    supabase.from('run_series').select('id,title').in('id', seriesIds),
-    supabase.from('venues').select('id,name').in('id', venueIds),
+    supabase.from('run_series').select('id,title,organizer_id,timezone').in('id', seriesIds),
+    venueIds.length
+      ? supabase.from('venues').select('id,name').in('id', venueIds)
+      : Promise.resolve({ data: [], error: null }),
     supabase.from('sports').select('id,name,slug').in('id', sportIds),
   ]);
   if (series.error) throw series.error;
@@ -45,7 +49,7 @@ async function sessionLabels(sessions: RunSession[]) {
   if (sports.error) throw sports.error;
 
   return {
-    series: new Map((series.data ?? []).map((item) => [item.id, item.title])),
+    series: new Map((series.data ?? []).map((item) => [item.id, item])),
     venues: new Map((venues.data ?? []).map((item) => [item.id, item.name])),
     sports: new Map((sports.data ?? []).map((item) => [item.id, item])),
   };
@@ -107,8 +111,12 @@ export function useCommunityFeed(regionId?: number) {
             .filter((item) => item.post_id === post.id)
             .map((item) => ({ ...item, url: publicMediaUrl(item) })),
           session,
-          sessionTitle: labels.series.get(session.run_series_id) ?? 'Pickup session',
-          venueName: labels.venues.get(session.venue_id) ?? 'Local venue',
+          sessionTitle:
+            session.title ?? labels.series.get(session.run_series_id)?.title ?? 'Pickup session',
+          venueName:
+            session.location_name ??
+            (session.venue_id ? labels.venues.get(session.venue_id) : null) ??
+            'Meeting spot',
           sportName: sport?.name ?? 'Sport',
           sportSlug: sport?.slug ?? '',
         };
@@ -147,8 +155,12 @@ export function useJoinedSessions(userId?: string) {
         const sport = labels.sports.get(session.sport_id);
         return {
           ...session,
-          title: labels.series.get(session.run_series_id) ?? 'Pickup session',
-          venueName: labels.venues.get(session.venue_id) ?? 'Local venue',
+          title:
+            session.title ?? labels.series.get(session.run_series_id)?.title ?? 'Pickup session',
+          venueName:
+            session.location_name ??
+            (session.venue_id ? labels.venues.get(session.venue_id) : null) ??
+            'Meeting spot',
           sportName: sport?.name ?? 'Sport',
           sportSlug: sport?.slug ?? '',
           lastMessage:
@@ -189,6 +201,7 @@ export function useSessionOverview(sessionId?: string, userId?: string) {
   return useQuery({
     queryKey: ['session-overview', sessionId, userId],
     enabled: Boolean(sessionId),
+    refetchInterval: 8_000,
     queryFn: async () => {
       const result = await supabase.from('run_sessions').select('*').eq('id', sessionId!).single();
       if (result.error) throw result.error;
@@ -207,8 +220,16 @@ export function useSessionOverview(sessionId?: string, userId?: string) {
       }
       return {
         ...result.data,
-        title: labels.series.get(result.data.run_series_id) ?? 'Pickup session',
-        venueName: labels.venues.get(result.data.venue_id) ?? 'Local venue',
+        title:
+          result.data.title ??
+          labels.series.get(result.data.run_series_id)?.title ??
+          'Pickup session',
+        isOrganizer: labels.series.get(result.data.run_series_id)?.organizer_id === userId,
+        timezone: labels.series.get(result.data.run_series_id)?.timezone ?? 'UTC',
+        venueName:
+          result.data.location_name ??
+          (result.data.venue_id ? labels.venues.get(result.data.venue_id) : null) ??
+          'Meeting spot',
         sportName: sport?.name ?? 'Sport',
         sportSlug: sport?.slug ?? '',
         isMember,
@@ -248,10 +269,29 @@ export function useSendMessage(sessionId: string, userId: string) {
   });
 }
 
+export type PhotoLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  observedAt: string;
+};
+
+export async function checkSessionPhotoLocation(sessionId: string, location: PhotoLocation) {
+  const result = await supabase.rpc('check_session_photo_location', {
+    p_session_id: sessionId,
+    p_lat: location.latitude,
+    p_lon: location.longitude,
+    p_accuracy: location.accuracy,
+    p_observed_at: location.observedAt,
+  });
+  if (result.error) throw result.error;
+}
+
 export async function publishSessionPost(input: {
   sessionId: string;
   userId: string;
   caption: string;
+  location: PhotoLocation;
   asset?: {
     uri: string;
     kind: 'image' | 'video';
@@ -261,42 +301,76 @@ export async function publishSessionPost(input: {
     durationSeconds?: number;
   };
 }) {
-  if (input.asset?.kind === 'video' && (input.asset.durationSeconds ?? 31) > 30) {
-    throw new Error('Clips must be 30 seconds or shorter.');
+  const caption = input.caption.trim();
+  if (!caption && !input.asset) throw new Error('Add a caption or a photo to share.');
+  if (caption.length > 500) throw new Error('Keep captions under 500 characters.');
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'video/mp4': 'mp4',
+    'video/quicktime': 'mov',
+  };
+  let body: ArrayBuffer | undefined;
+  if (input.asset) {
+    if (
+      !extensions[input.asset.mimeType] ||
+      !input.asset.mimeType.startsWith(`${input.asset.kind}/`)
+    ) {
+      throw new Error('Choose a JPEG, PNG, WebP image, or an MP4 or MOV clip.');
+    }
+    if (
+      input.asset.kind === 'video' &&
+      (!Number.isFinite(input.asset.durationSeconds) ||
+        (input.asset.durationSeconds ?? 0) <= 0 ||
+        input.asset.durationSeconds! > 30)
+    ) {
+      throw new Error('Clips must be between 1 and 30 seconds long.');
+    }
+    body = await fetch(input.asset.uri).then((response) => response.arrayBuffer());
+    if (!body || body.byteLength === 0 || body.byteLength > 25 * 1024 * 1024) {
+      throw new Error('Choose a non-empty file no larger than 25 MB.');
+    }
   }
 
-  const post = await supabase
-    .from('session_posts')
-    .insert({ session_id: input.sessionId, author_id: input.userId, caption: input.caption.trim() })
-    .select('id')
-    .single();
-  if (post.error) throw post.error;
-  if (!input.asset) return post.data.id;
-
-  const extension = input.asset.mimeType.includes('png')
-    ? 'png'
-    : input.asset.kind === 'video'
-      ? 'mp4'
-      : 'jpg';
-  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const path = `${input.userId}/${post.data.id}/${uniqueName}.${extension}`;
-  const body = await fetch(input.asset.uri).then((response) => response.arrayBuffer());
-  const upload = await supabase.storage
-    .from('session-media')
-    .upload(path, body, { contentType: input.asset.mimeType, upsert: false });
-  if (upload.error) throw upload.error;
-
-  const media = await supabase.from('session_media').insert({
-    post_id: post.data.id,
-    uploader_id: input.userId,
-    kind: input.asset.kind,
-    storage_path: path,
-    width: input.asset.width,
-    height: input.asset.height,
-    duration_seconds: input.asset.durationSeconds,
+  const post = await supabase.rpc('create_session_photo_post', {
+    p_session_id: input.sessionId,
+    p_caption: caption,
+    p_lat: input.location.latitude,
+    p_lon: input.location.longitude,
+    p_accuracy: input.location.accuracy,
+    p_observed_at: input.location.observedAt,
   });
-  if (media.error) throw media.error;
-  return post.data.id;
+  if (post.error) throw post.error;
+  if (!input.asset || !body) return post.data;
+
+  const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const path = `${input.userId}/${post.data}/${uniqueName}.${extensions[input.asset.mimeType]}`;
+  try {
+    const upload = await supabase.storage
+      .from('session-media')
+      .upload(path, body, { contentType: input.asset.mimeType, upsert: false });
+    if (upload.error) throw upload.error;
+
+    const media = await supabase.from('session_media').insert({
+      post_id: post.data,
+      uploader_id: input.userId,
+      kind: input.asset.kind,
+      storage_path: path,
+      width: input.asset.width,
+      height: input.asset.height,
+      duration_seconds: input.asset.kind === 'video' ? input.asset.durationSeconds : undefined,
+    });
+    if (media.error) throw media.error;
+    return post.data;
+  } catch (error) {
+    // Best-effort compensation: preserve the original error if cleanup also fails.
+    await Promise.allSettled([
+      supabase.storage.from('session-media').remove([path]),
+      supabase.from('session_posts').delete().eq('id', post.data),
+    ]);
+    throw error;
+  }
 }
 
 export function usePublishSessionPost(sessionId: string, userId: string) {
@@ -304,6 +378,7 @@ export function usePublishSessionPost(sessionId: string, userId: string) {
   return useMutation({
     mutationFn: (input: {
       caption: string;
+      location: PhotoLocation;
       asset?: {
         uri: string;
         kind: 'image' | 'video';
@@ -315,4 +390,80 @@ export function usePublishSessionPost(sessionId: string, userId: string) {
     }) => publishSessionPost({ ...input, sessionId, userId }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['community-feed'] }),
   });
+}
+
+/** Public session pins, separate from the canonical venue directory. */
+export function usePublicSessionPins(sportIds: number[]) {
+  return useQuery({
+    queryKey: ['public-session-pins', [...sportIds].sort().join(',')],
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      let query = supabase
+        .from('run_sessions')
+        .select('id,title,location_name,latitude,longitude,sport_id,starts_at,run_series(title)')
+        .is('cancelled_at', null)
+        .is('venue_id', null)
+        .gte('ends_at', new Date().toISOString())
+        .lte('starts_at', new Date(Date.now() + 14 * 86400000).toISOString())
+        .order('starts_at')
+        .limit(100);
+      if (sportIds.length) query = query.in('sport_id', sportIds);
+      const result = await query;
+      if (result.error) throw result.error;
+      return result.data;
+    },
+  });
+}
+
+export type EditSessionInput = {
+  p_session_id: string;
+  p_title: string;
+  p_date: string;
+  p_start_time: string;
+  p_end_time: string;
+  p_timezone: string;
+  p_location_name?: string;
+  p_lat?: number;
+  p_lon?: number;
+};
+
+export function useSessionControls(sessionId: string) {
+  const client = useQueryClient();
+  async function refresh() {
+    // Cancel in-flight reads before removing private chat cached before leaving.
+    await client.cancelQueries({ queryKey: ['session-messages', sessionId] });
+    client.removeQueries({ queryKey: ['session-messages', sessionId] });
+    await Promise.all(
+      [
+        'session-overview',
+        'joined-sessions',
+        'upcoming-runs',
+        'public-session-pins',
+        'community-feed',
+      ].map((key) => client.invalidateQueries({ queryKey: [key] })),
+    );
+  }
+  const edit = useMutation({
+    mutationFn: async (input: EditSessionInput) => {
+      const result = await supabase.rpc('edit_run_session', input);
+      if (result.error) throw result.error;
+    },
+    onSuccess: refresh,
+  });
+  const cancel = useMutation({
+    mutationFn: async () => {
+      const result = await supabase.rpc('cancel_run_session', { p_session_id: sessionId });
+      if (result.error) throw result.error;
+    },
+    onSuccess: refresh,
+  });
+  const leave = useMutation({
+    mutationFn: async () => {
+      const result = await supabase.rpc('leave_run_session', { p_session_id: sessionId });
+      if (result.error) throw result.error;
+    },
+    onSuccess: refresh,
+  });
+  return { edit, cancel, leave };
 }

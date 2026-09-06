@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — DO NOT EDIT.
  *
- * Produced by `npm run db:types` from the local Supabase schema.
+ * Produced by `npm run db:types` from the hosted Supabase schema.
  * To change anything here, edit a migration in supabase/migrations/ and rerun.
  */
 
@@ -14,8 +14,40 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity_id: string
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id: string
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string
+          id?: never
+        }
+        Relationships: []
+      }
       admin_users: {
         Row: {
           created_at: string
@@ -376,10 +408,13 @@ export type Database = {
           description: string | null
           expected_players: number | null
           id: string
+          latitude: number | null
           local_end_time: string
           local_start_time: string
+          location_name: string | null
+          longitude: number | null
           organizer_id: string
-          region_id: number
+          region_id: number | null
           sport_id: number
           starts_on: string
           status: Database["public"]["Enums"]["run_series_status"]
@@ -387,7 +422,7 @@ export type Database = {
           title: string | null
           updated_at: string
           valid_until: string
-          venue_id: string
+          venue_id: string | null
           weekday: number
         }
         Insert: {
@@ -395,10 +430,13 @@ export type Database = {
           description?: string | null
           expected_players?: number | null
           id?: string
+          latitude?: number | null
           local_end_time: string
           local_start_time: string
+          location_name?: string | null
+          longitude?: number | null
           organizer_id: string
-          region_id: number
+          region_id?: number | null
           sport_id: number
           starts_on: string
           status?: Database["public"]["Enums"]["run_series_status"]
@@ -406,7 +444,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           valid_until: string
-          venue_id: string
+          venue_id?: string | null
           weekday: number
         }
         Update: {
@@ -414,10 +452,13 @@ export type Database = {
           description?: string | null
           expected_players?: number | null
           id?: string
+          latitude?: number | null
           local_end_time?: string
           local_start_time?: string
+          location_name?: string | null
+          longitude?: number | null
           organizer_id?: string
-          region_id?: number
+          region_id?: number | null
           sport_id?: number
           starts_on?: string
           status?: Database["public"]["Enums"]["run_series_status"]
@@ -425,7 +466,7 @@ export type Database = {
           title?: string | null
           updated_at?: string
           valid_until?: string
-          venue_id?: string
+          venue_id?: string | null
           weekday?: number
         }
         Relationships: [
@@ -454,37 +495,52 @@ export type Database = {
       }
       run_sessions: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           ends_at: string
           id: string
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
           occurrence_date: string
-          region_id: number
+          region_id: number | null
           run_series_id: string
           sport_id: number
           starts_at: string
-          venue_id: string
+          title: string | null
+          venue_id: string | null
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           ends_at: string
           id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
           occurrence_date: string
-          region_id: number
+          region_id?: number | null
           run_series_id: string
           sport_id: number
           starts_at: string
-          venue_id: string
+          title?: string | null
+          venue_id?: string | null
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           ends_at?: string
           id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
           occurrence_date?: string
-          region_id?: number
+          region_id?: number | null
           run_series_id?: string
           sport_id?: number
           starts_at?: string
-          venue_id?: string
+          title?: string | null
+          venue_id?: string | null
         }
         Relationships: [
           {
@@ -631,6 +687,7 @@ export type Database = {
           caption: string | null
           created_at: string
           id: string
+          location_verified_at: string | null
           session_id: string
         }
         Insert: {
@@ -638,6 +695,7 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          location_verified_at?: string | null
           session_id: string
         }
         Update: {
@@ -645,6 +703,7 @@ export type Database = {
           caption?: string | null
           created_at?: string
           id?: string
+          location_verified_at?: string | null
           session_id?: string
         }
         Relationships: [
@@ -1021,6 +1080,78 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_review_candidate: {
+        Args: {
+          p_candidate_id: string
+          p_decision: string
+          p_name?: string
+          p_note?: string
+          p_target_venue_id?: string
+        }
+        Returns: string
+      }
+      admin_update_venue: {
+        Args: {
+          p_address: string
+          p_indoor_state: Database["public"]["Enums"]["indoor_state"]
+          p_name: string
+          p_sport_ids: number[]
+          p_status: Database["public"]["Enums"]["venue_status"]
+          p_venue_id: string
+          p_verified: boolean
+        }
+        Returns: undefined
+      }
+      can_post_to_session: { Args: { p_session_id: string }; Returns: boolean }
+      cancel_run_session: { Args: { p_session_id: string }; Returns: undefined }
+      check_session_photo_location: {
+        Args: {
+          p_accuracy: number
+          p_lat: number
+          p_lon: number
+          p_observed_at: string
+          p_session_id: string
+        }
+        Returns: undefined
+      }
+      create_run: {
+        Args: {
+          p_end_time: string
+          p_sport_id: number
+          p_start_time: string
+          p_starts_on: string
+          p_title: string
+          p_venue_id: string
+          p_weeks: number
+        }
+        Returns: string
+      }
+      create_run_at_pin: {
+        Args: {
+          p_end_time: string
+          p_lat: number
+          p_location_name: string
+          p_lon: number
+          p_sport_id: number
+          p_start_time: string
+          p_starts_on: string
+          p_timezone: string
+          p_title: string
+          p_weeks: number
+        }
+        Returns: string
+      }
+      create_session_photo_post: {
+        Args: {
+          p_accuracy: number
+          p_caption: string
+          p_lat: number
+          p_lon: number
+          p_observed_at: string
+          p_session_id: string
+        }
+        Returns: string
+      }
       current_profile: {
         Args: never
         Returns: {
@@ -1038,6 +1169,20 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      edit_run_session: {
+        Args: {
+          p_date: string
+          p_end_time: string
+          p_lat?: number
+          p_location_name?: string
+          p_lon?: number
+          p_session_id: string
+          p_start_time: string
+          p_timezone: string
+          p_title: string
+        }
+        Returns: undefined
       }
       find_duplicate_candidates: {
         Args: {
@@ -1063,6 +1208,7 @@ export type Database = {
         Args: { p_occurrence_date: string; p_run_series_id: string }
         Returns: string
       }
+      leave_run_session: { Args: { p_session_id: string }; Returns: undefined }
       nearby_venues: {
         Args: {
           p_lat: number
@@ -1234,12 +1380,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1263,11 +1409,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1288,11 +1434,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1313,11 +1459,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1330,11 +1476,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1378,4 +1524,3 @@ export const Constants = {
     },
   },
 } as const
-

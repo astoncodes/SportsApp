@@ -10,7 +10,7 @@
  * what keeps escalation auditable, and it is why supabase/tests/004 asserts
  * that even an admin cannot promote somebody through the API.
  *
- * Reads SUPABASE_DB_URL from .env, so it works against local or hosted.
+ * Reads SUPABASE_DB_URL from .env, for the hosted project.
  */
 
 import { readFileSync } from 'node:fs';
