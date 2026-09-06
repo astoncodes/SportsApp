@@ -328,14 +328,12 @@ try {
     );
     assert.ok(
       (
-        await member
-          .from('session_media')
-          .insert({
-            post_id: postId,
-            uploader_id: users[0],
-            kind: 'image',
-            storage_path: deniedPath,
-          })
+        await member.from('session_media').insert({
+          post_id: postId,
+          uploader_id: users[0],
+          kind: 'image',
+          storage_path: deniedPath,
+        })
       ).error,
       'unverified or expired posts cannot receive media metadata',
     );
