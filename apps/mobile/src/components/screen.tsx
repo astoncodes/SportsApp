@@ -11,6 +11,7 @@ export function Screen({ children }: { children: ReactNode }) {
 
   return (
     <ScrollView
+      keyboardShouldPersistTaps="handled"
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={[
         styles.content,

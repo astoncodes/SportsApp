@@ -9,8 +9,8 @@
  *
  * This checks two things instead:
  *
- *   1. Literal values. Every variable in .env that is NOT prefixed VITE_ or
- *      EXPO_PUBLIC_ is server-side by definition. Their actual values must not
+ *   1. Literal values. Variables outside the public prefixes and explicit native-key
+ *      allowlist are treated as server-side. Their actual values must not
  *      appear in any bundle. This is exact, and it stays correct as .env grows.
  *
  *   2. Shapes. Patterns that are credentials regardless of where they came
@@ -30,6 +30,8 @@ const BUNDLE_DIRS = ['apps/admin/dist', 'apps/mobile/dist'];
 
 /** Prefixes that mark a variable as intentionally public. */
 const PUBLIC_PREFIXES = ['VITE_', 'EXPO_PUBLIC_'];
+// Embedded in the Android manifest by the map plugin; provider restrictions protect it.
+const PUBLIC_NATIVE_KEYS = new Set(['GOOGLE_MAPS_ANDROID_API_KEY']);
 
 /** Values too short or generic to be meaningful evidence of a leak. */
 const MIN_SECRET_LENGTH = 12;
@@ -80,6 +82,7 @@ function readEnvSecrets() {
     }
 
     if (!value || value.length < MIN_SECRET_LENGTH) continue;
+    if (PUBLIC_NATIVE_KEYS.has(key)) continue;
     if (PUBLIC_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
 
     secrets.push({ key, value });

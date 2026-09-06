@@ -33,7 +33,7 @@ TOKEN_SEPARATOR = ";"
 #: Maps a normalized OSM token to one of our sport slugs, or to ``None``
 #: meaning "known, deliberately ignored". A token ABSENT from the mapping is
 #: unknown — which is a different thing from ignored, and must stay different.
-#: Loaded from public.osm_sport_aliases; see supabase/seed.sql.
+#: Loaded from public.osm_sport_aliases; see supabase/migrations/20260905213000_reference_data.sql.
 AliasMap = Mapping[str, str | None]
 
 

@@ -9,12 +9,7 @@ type Status =
   | { kind: 'sent'; email: string }
   | { kind: 'error'; message: string };
 
-/**
- * Email one-time-code sign-in.
- *
- * No password to leak and nothing to store. Locally, the message is caught by
- * Mailpit rather than actually sent — open http://127.0.0.1:54324 to read it.
- */
+/** Passwordless email sign-in through the hosted project. */
 export function SignIn() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -42,13 +37,6 @@ export function SignIn() {
         <p>
           A sign-in link is on its way to <strong>{status.email}</strong>.
         </p>
-        <p className="hint">
-          Running locally? Nothing actually leaves your machine — open{' '}
-          <a href="http://127.0.0.1:54324" target="_blank" rel="noreferrer">
-            Mailpit
-          </a>{' '}
-          to read it.
-        </p>
         <button type="button" className="secondary" onClick={() => setStatus({ kind: 'idle' })}>
           Use a different address
         </button>
@@ -58,8 +46,11 @@ export function SignIn() {
 
   return (
     <form className="card" onSubmit={handleSubmit}>
-      <h1>Venue review</h1>
-      <p>Sign in to review imported venues. Admin access is required.</p>
+      <p className="eyebrow">DROP IN / ADMIN</p>
+      <h1>A better place to play.</h1>
+      <p>
+        Sign in to review submissions and manage your community’s venues. Admin access is required.
+      </p>
 
       <label htmlFor="email">Email address</label>
       <input

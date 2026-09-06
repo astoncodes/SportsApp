@@ -89,6 +89,31 @@ const config: ExpoConfig = {
     'expo-router',
     'expo-video',
     [
+      'expo-image-picker',
+      {
+        cameraPermission: 'Drop In uses your camera to take photos at your sports session.',
+        photosPermission: 'Drop In lets you choose photos and clips to share from your session.',
+        microphonePermission: false,
+      },
+    ],
+    [
+      'react-native-maps',
+      { androidGoogleMapsApiKey: read('GOOGLE_MAPS_ANDROID_API_KEY') || undefined },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Drop In uses your location to show nearby sports sessions help you choose a meeting spot, and confirm you are nearby when sharing session photos.',
+        locationAlwaysPermission: false,
+        locationAlwaysAndWhenInUsePermission: false,
+        motionUsagePermission: false,
+        isIosBackgroundLocationEnabled: false,
+        isAndroidBackgroundLocationEnabled: false,
+        isAndroidForegroundServiceEnabled: false,
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         backgroundColor: '#208AEF',
@@ -109,9 +134,8 @@ const config: ExpoConfig = {
   extra: {
     supabaseUrl: read('EXPO_PUBLIC_SUPABASE_URL'),
     supabaseAnonKey: read('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
-    // Kept configurable so public Nominatim can be replaced by a proxy or
-    // another provider without changing feature code.
-    nominatimUrl: read('EXPO_PUBLIC_NOMINATIM_URL') || 'https://nominatim.openstreetmap.org',
+    geoapifyApiKey: read('EXPO_PUBLIC_GEOAPIFY_API_KEY'),
+    cartoBasemapKey: read('EXPO_PUBLIC_CARTO_BASEMAP_KEY'),
   },
 };
 

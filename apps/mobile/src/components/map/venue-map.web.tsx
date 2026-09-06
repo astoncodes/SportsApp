@@ -1,10 +1,13 @@
 import 'leaflet/dist/leaflet.css';
 
 import L from 'leaflet';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useFonts } from 'expo-font';
+import { sportIcon } from '../ui/primitives';
 import { useEffect, useRef } from 'react';
 
 import { palettes } from '../../theme/tokens';
-import { TILE_ATTRIBUTION, TILE_SOURCES } from './types';
+import { WEB_TILE_ATTRIBUTION_HTML, WEB_TILE_SOURCES } from './types';
 import type { MapMarker, VenueMapProps } from './types';
 
 /**
@@ -22,32 +25,20 @@ import type { MapMarker, VenueMapProps } from './types';
 
 function markerHtml(marker: MapMarker, scheme: 'light' | 'dark'): string {
   const colors = palettes[scheme];
-  const fill = marker.isLive ? colors.live : marker.isPending ? colors.soon : colors.surface;
-  const ink = marker.isLive || marker.isPending ? '#FFFFFF' : colors.text;
-  const ring = marker.selected ? colors.text : 'rgba(0,0,0,0.12)';
-  // Quiet venues are deliberately much smaller. At a uniform size they read as
-  // a field of white blobs competing with the live pins, which inverts the
-  // whole point of the screen — the eye should land on activity first.
-  const size = marker.isLive ? 40 : marker.isPending ? 32 : 22;
-
-  // The pulse is drawn only for genuinely live venues. An animated ring on an
-  // empty court would imply activity that is not there.
-  const pulse = marker.isLive
-    ? `<span style="position:absolute;inset:-8px;border-radius:999px;background:${colors.live};opacity:.28;animation:dropin-pulse 2.2s ease-out infinite"></span>`
-    : '';
-
+  const session = marker.kind === 'session';
+  const fill = session ? '#E63746' : '#536477';
+  const ring = marker.selected ? colors.text : '#FFFFFF';
+  const glyph =
+    MaterialCommunityIcons.glyphMap[session ? sportIcon(marker.sportSlug) : 'map-marker-outline'];
   const badge =
     marker.count > 0
-      ? `<span style="font:700 14px/1 ui-sans-serif,system-ui;color:${ink}">${marker.count}</span>`
-      : marker.isPending
-        ? `<span style="font:700 12px/1 ui-sans-serif,system-ui;color:${ink}">→</span>`
-        : `<span style="width:7px;height:7px;border-radius:999px;background:${colors.textMuted};opacity:.7"></span>`;
-
-  return `<div style="position:relative;display:flex;align-items:center;justify-content:center;
-      width:${size}px;height:${size}px;border-radius:999px;background:${fill};
-      border:2px solid ${ring};box-shadow:0 4px 14px rgba(8,19,15,.25)">
-      ${pulse}<span style="position:relative">${badge}</span>
-    </div>`;
+      ? `<span style="position:absolute;right:-3px;top:-4px;min-width:16px;height:16px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:${colors.live};color:white;font:700 10px/16px system-ui;text-align:center;border:1px solid white">${Math.min(marker.count, 99)}</span>`
+      : '';
+  return `<div style="position:relative;width:48px;height:${session ? 56 : 44}px">
+    <div style="position:absolute;left:6px;top:6px;width:36px;height:36px;box-sizing:border-box;background:${fill};border:2px solid ${ring};border-radius:${session ? '50% 50% 3px 50%' : '10px'};transform:${session ? 'rotate(45deg)' : 'none'};box-shadow:0 3px 7px #18253340"></div>
+    <span style="position:absolute;left:11px;top:11px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${session ? '#FFFFFF' : 'transparent'};color:${session ? fill : '#FFFFFF'};font:20px '${MaterialCommunityIcons.getFontFamily()}';">&#${glyph};</span>
+    ${badge}
+  </div>`;
 }
 
 export default function VenueMap({
@@ -61,6 +52,7 @@ export default function VenueMap({
   colorScheme,
   style,
 }: VenueMapProps) {
+  useFonts(MaterialCommunityIcons.font);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileRef = useRef<L.TileLayer | null>(null);
@@ -113,9 +105,8 @@ export default function VenueMap({
     });
 
     const style = document.createElement('style');
-    style.textContent = `@keyframes dropin-pulse{0%{transform:scale(.9);opacity:.35}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
-      .leaflet-container{background:transparent;font-family:ui-sans-serif,system-ui}
-      @media (prefers-reduced-motion: reduce){[style*="dropin-pulse"]{animation:none!important}}`;
+    style.textContent = `.leaflet-container{background:#F2F3F7;font-family:ui-sans-serif,system-ui}
+      .leaflet-marker-icon:focus-visible{outline:3px solid #2563EB;outline-offset:3px;border-radius:8px}`;
     document.head.appendChild(style);
 
     return () => {
@@ -132,8 +123,8 @@ export default function VenueMap({
     if (!map) return;
 
     tileRef.current?.remove();
-    tileRef.current = L.tileLayer(TILE_SOURCES[colorScheme], {
-      attribution: TILE_ATTRIBUTION,
+    tileRef.current = L.tileLayer(WEB_TILE_SOURCES[colorScheme], {
+      attribution: WEB_TILE_ATTRIBUTION_HTML,
       maxZoom: 19,
       // Explicitly bounded. This is an interactive map, not a prefetcher.
       minZoom: 9,
@@ -146,14 +137,15 @@ export default function VenueMap({
 
     layer.clearLayers();
     for (const marker of markers) {
-      const size = marker.isLive ? 40 : 34;
+      const session = marker.kind === 'session';
       L.marker([marker.latitude, marker.longitude], {
         icon: L.divIcon({
           html: markerHtml(marker, colorScheme),
           className: '',
-          iconSize: [size, size],
-          iconAnchor: [size / 2, size / 2],
+          iconSize: [48, session ? 56 : 44],
+          iconAnchor: session ? [24, 49] : [24, 24],
         }),
+        zIndexOffset: marker.selected ? 1000 : session ? 500 : 0,
         keyboard: true,
         title: marker.label,
         alt: marker.label,
@@ -177,13 +169,17 @@ export default function VenueMap({
     layer.clearLayers();
     if (!userLocation) return;
 
-    const colors = palettes[colorScheme];
-    L.circleMarker([userLocation.latitude, userLocation.longitude], {
-      radius: 7,
-      color: '#FFFFFF',
-      weight: 3,
-      fillColor: colors.info,
-      fillOpacity: 1,
+    L.marker([userLocation.latitude, userLocation.longitude], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="width:40px;height:40px;box-sizing:border-box;border-radius:50%;background:#16A34A26;border:1px solid #16A34A50;display:flex;align-items:center;justify-content:center"><div style="width:18px;height:18px;border-radius:50%;background:#16A34A;border:3px solid white;box-shadow:0 2px 5px #0003"></div></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      }),
+      title: 'Your location',
+      alt: 'Your location',
+      zIndexOffset: 2000,
+      interactive: false,
     }).addTo(layer);
   }, [userLocation, colorScheme]);
 

@@ -1,4 +1,4 @@
--- Seed data for local development. Applied by `supabase db reset` after
+-- Synthetic data for an isolated test project. Load manually after
 -- migrations. Safe to re-run: every statement is idempotent.
 --
 -- The alias list below is not invented — it is the set of sport tokens actually

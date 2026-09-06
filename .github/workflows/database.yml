@@ -1,0 +1,32 @@
+name: Hosted database checks
+# Optional maintenance workflow; never required to start the application.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-database-tests
+  cancel-in-progress: false
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: database-tests
+    env:
+      SUPABASE_TEST_PROJECT_REF: ${{ secrets.SUPABASE_TEST_PROJECT_REF }}
+      SUPABASE_TEST_DB_URL: ${{ secrets.SUPABASE_TEST_DB_URL }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The isolated test project must already contain migrations and fixtures.
+      - run: npm run db:test
+      - name: Check generated types against hosted app schema
+        run: |
+          npm run db:types
+          git diff --exit-code -- packages/database-types/src/database.types.ts

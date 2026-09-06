@@ -35,8 +35,8 @@ first thing real data does is contradict it.
 6. **Every exposed table gets RLS and explicit grants.** Both. A pgTAP test asserts no public
    table lacks RLS — if you add one without it, tests fail.
 7. **Add or update a database test for every RLS or transactional rule you change.**
-8. **Regenerate types after every migration** (`npm run db:types`) and commit the result. CI
-   fails on drift.
+8. **Regenerate types after every migration** (`npm run db:types`) and commit the result. The manual hosted database workflow
+   checks drift.
 
 ## Conventions
 
@@ -54,7 +54,8 @@ first thing real data does is contradict it.
 
 ## Before you say it works
 
-Run `npm run check` and `npm run db:test`, and read the output. "Should work" is not a result.
+Run `npm run check`; for database changes also run `npm run db:test` against the isolated
+test project, and read the output. If test credentials are unavailable, report that explicitly. "Should work" is not a result.
 
 If something is blocked or you had to guess, say so plainly rather than shipping a plausible
 guess quietly — an unflagged guess in a schema costs far more later than a question now.

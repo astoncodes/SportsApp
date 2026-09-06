@@ -1,6 +1,5 @@
-import * as Linking from 'expo-linking';
 import { useState } from 'react';
-import { Platform, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText, Button } from '../../components/ui/primitives';
 import { supabase } from '../../lib/supabase';
@@ -44,15 +43,6 @@ export function SignInForm() {
           We sent a secure sign-in link to {status.email}. The link signs you in and returns you to
           Drop In.
         </AppText>
-        {__DEV__ && Platform.OS === 'web' && (
-          <Button
-            label="Open local test inbox"
-            icon="email-outline"
-            tone="neutral"
-            variant="soft"
-            onPress={() => void Linking.openURL('http://127.0.0.1:54324')}
-          />
-        )}
         <Button
           label="Use a different email"
           tone="neutral"

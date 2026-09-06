@@ -12,6 +12,19 @@ select has_table('public', 'session_messages', 'private messages exist');
 select has_table('public', 'session_posts', 'public session posts exist');
 select has_table('public', 'session_media', 'post media exists');
 
+-- Count the actual upcoming occurrence's members. Seed dates age as the clock
+-- advances, so the first occurrence need not be one of the materialized demos.
+select set_config('test.expected_members', (
+  with occurrence as (select * from public.upcoming_runs(null, null, null, now(), 14) limit 1),
+  expected as (
+    select m.user_id from public.session_memberships m
+      join public.run_sessions r on r.id = m.session_id
+      join occurrence o on o.run_series_id = r.run_series_id and o.occurrence_date = r.occurrence_date
+    union select organizer_id from occurrence
+    union select '91111111-1111-4111-8111-111111111111'::uuid
+  ) select count(*)::text from expected
+), true);
+
 select set_config('request.jwt.claims', json_build_object('sub', '91111111-1111-4111-8111-111111111111', 'role', 'authenticated')::text, true);
 set local role authenticated;
 
@@ -28,7 +41,7 @@ select lives_ok(
 select is(
   (select count(*)::integer from public.session_memberships
     where session_id = current_setting('test.joined_session_id')::uuid),
-  3,
+  current_setting('test.expected_members')::integer,
   'the joining player can see every member of the session they joined'
 );
 
@@ -40,10 +53,11 @@ select lives_ok(
 );
 
 select lives_ok(
-  $$ insert into public.session_posts (session_id, author_id, caption)
-     values (current_setting('test.joined_session_id')::uuid,
-             '91111111-1111-4111-8111-111111111111', 'Great run tonight') $$,
-  'a member can publish a feed post'
+  $$ select public.create_session_photo_post(s.id, 'Great run tonight',
+       extensions.st_y(v.location::extensions.geometry), extensions.st_x(v.location::extensions.geometry), 10, now())
+       from public.run_sessions s join public.venues v on v.id = s.venue_id
+       where s.id = current_setting('test.joined_session_id')::uuid $$,
+  'a nearby member can publish a feed post'
 );
 
 select throws_ok(

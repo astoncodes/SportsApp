@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -14,6 +15,7 @@ import { supabase } from './supabase';
  * supabase.auth themselves, so there is a single answer to "am I signed in".
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -26,20 +28,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!isActive) return;
         setSession(data.session);
       })
+      .catch(() => {
+        if (isActive) setSession(null);
+      })
       .finally(() => {
         if (!isActive) return;
         setIsLoading(false);
       });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (_event === 'SIGNED_OUT') queryClient.clear();
       setSession(nextSession);
+      setIsLoading(false);
     });
 
     return () => {
       isActive = false;
       subscription.subscription.unsubscribe();
     };
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthState>(() => ({ session, isLoading }), [session, isLoading]);
 

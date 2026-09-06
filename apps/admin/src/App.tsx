@@ -1,5 +1,7 @@
 import { SignIn } from './features/auth/sign-in';
-import { ReviewQueue } from './features/review/review-queue';
+import { AdminConsole } from './features/console/admin-console';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from './lib/auth-context';
 import { supabase } from './lib/supabase';
 import { useIsAdmin } from './lib/use-is-admin';
@@ -8,15 +10,31 @@ import { useIsAdmin } from './lib/use-is-admin';
  * The protected shell.
  *
  * Three gates in order: is the session loaded, is there a session, is that user
- * an admin. No router yet — there is exactly one screen. Phase 1 adds routing
- * when review and merges become separate destinations.
+ * an admin. Database permissions enforce access to every operation.
  */
 export default function App() {
+  const client = useQueryClient();
+  const [signOutError, setSignOutError] = useState('');
+  async function signOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) setSignOutError(error.message);
+    else client.clear();
+  }
   const { session, isLoading: isSessionLoading } = useSession();
-  const { data: isAdmin, isPending: isAdminPending, error: adminError } = useIsAdmin();
+  const {
+    data: isAdmin,
+    isPending: isAdminPending,
+    error: adminError,
+    refetch: checkAccess,
+    isFetching: checkingAccess,
+  } = useIsAdmin();
 
   if (isSessionLoading) {
-    return <main className="shell" />;
+    return (
+      <main className="shell" role="status">
+        Loading your workspace…
+      </main>
+    );
   }
 
   if (!session) {
@@ -33,27 +51,45 @@ export default function App() {
         <span>
           Signed in as <strong>{session.user.email}</strong>
         </span>
-        <button type="button" className="secondary" onClick={() => supabase.auth.signOut()}>
+        <button type="button" className="secondary" onClick={() => void signOut()}>
           Sign out
         </button>
       </header>
 
+      {signOutError && (
+        <p className="error" role="alert">
+          {signOutError}
+        </p>
+      )}
       {isAdminPending && <div className="card">Checking access…</div>}
 
-      {adminError && <div className="card error">{(adminError as Error).message}</div>}
+      {adminError && (
+        <div className="card error" role="alert">
+          {adminError.message}
+          <button
+            className="secondary"
+            onClick={() => void checkAccess()}
+            disabled={checkingAccess}
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
       {isAdmin === false && (
         <div className="card">
           <h1>No admin access</h1>
           <p>
-            This account is signed in but is not an admin, so there is nothing here for it. Admin
-            access is granted by inserting a row into <code>admin_users</code> with a privileged
-            connection — see the README.
+            This account does not have admin access yet. Once the project owner grants access, check
+            again to open your workspace.
           </p>
+          <button onClick={() => void checkAccess()} disabled={checkingAccess}>
+            {checkingAccess ? 'Checking…' : 'Check access again'}
+          </button>
         </div>
       )}
 
-      {isAdmin === true && <ReviewQueue />}
+      {isAdmin === true && <AdminConsole key={session.user.id} />}
     </main>
   );
 }

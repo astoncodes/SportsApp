@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import VenueMap from '../../src/components/map/venue-map';
@@ -10,12 +10,14 @@ import { EmptyState, Skeleton } from '../../src/components/ui/activity';
 import { AdaptiveGlassSurface } from '../../src/components/ui/glass-surface';
 import {
   AppText,
+  Button,
   Chip,
   IconButton,
   PressableSurface,
   sportIcon,
 } from '../../src/components/ui/primitives';
 import { ResultsSheet } from '../../src/components/ui/results-sheet';
+import { usePublicSessionPins } from '../../src/features/community/api';
 import { useAccountSports } from '../../src/features/account/api';
 import { useDeviceLocation } from '../../src/features/location/use-device-location';
 import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../../src/features/venues/api';
@@ -37,8 +39,6 @@ export default function LiveScreen() {
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
-  const isPhone = width < 600;
 
   const { session } = useSession();
   const userId = session?.user.id;
@@ -52,12 +52,11 @@ export default function LiveScreen() {
       ? filterOverride.sportIds
       : (preferredSports.data ?? []);
   const [view, setView] = useState<'map' | 'list'>('map');
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [center, setCenter] = useState<{ latitude: number; longitude: number }>(DEFAULT_CENTER);
 
   const { state: locationState, request: requestLocation } = useDeviceLocation();
   const sports = useSports();
+  const sessionPins = usePublicSessionPins(selectedSportIds);
   const venues = useNearbyVenues({
     latitude: center.latitude,
     longitude: center.longitude,
@@ -80,9 +79,8 @@ export default function LiveScreen() {
         isLive: venue.here_now > 0,
         isPending: venue.here_now === 0 && venue.heading_there > 0,
         label: `${venue.name}, ${venue.here_now} here now`,
-        selected: venue.venue_id === selectedVenueId,
       })),
-    [venues.data, selectedVenueId],
+    [venues.data],
   );
 
   const region: MapRegion = {
@@ -93,13 +91,6 @@ export default function LiveScreen() {
   };
 
   const liveCount = (venues.data ?? []).filter((v) => v.here_now > 0).length;
-  const displayedVenues = useMemo(() => {
-    const items = venues.data ?? [];
-    if (!selectedVenueId) return items;
-    return [...items].sort((a, b) =>
-      a.venue_id === selectedVenueId ? -1 : b.venue_id === selectedVenueId ? 1 : 0,
-    );
-  }, [venues.data, selectedVenueId]);
 
   function toggleSport(id: number) {
     setFilterOverride({
@@ -117,7 +108,7 @@ export default function LiveScreen() {
 
   const listContent = (
     <FlatList
-      data={displayedVenues}
+      data={venues.data ?? []}
       keyExtractor={(venue) => venue.venue_id}
       contentContainerStyle={{
         padding: space.lg,
@@ -162,10 +153,38 @@ export default function LiveScreen() {
         <View style={StyleSheet.absoluteFill}>
           <VenueMap
             region={region}
-            markers={markers}
+            markers={[
+              ...markers,
+              ...(sessionPins.data ?? []).flatMap((pin) =>
+                pin.latitude === null || pin.longitude === null
+                  ? []
+                  : [
+                      {
+                        id: `session/${pin.id}`,
+                        latitude: pin.latitude,
+                        longitude: pin.longitude,
+                        sportSlug:
+                          sports.data?.find((sport) => sport.id === pin.sport_id)?.slug ?? null,
+                        count: 0,
+                        isLive: false,
+                        isPending: true,
+                        kind: 'session' as const,
+                        label:
+                          pin.title ??
+                          pin.run_series?.title ??
+                          pin.location_name ??
+                          'Sports session',
+                      },
+                    ],
+              ),
+            ]}
             colorScheme={scheme}
             onSelectMarker={(id) => {
-              setSelectedVenueId(id);
+              if (id.startsWith('session/')) {
+                router.push(`/session/${id.slice('session/'.length)}`);
+                return;
+              }
+              router.push(`/venue/${id}`);
             }}
             userLocation={
               locationState.status === 'granted'
@@ -193,11 +212,7 @@ export default function LiveScreen() {
               </View>
             </View>
 
-            <IconButton
-              icon="tune-variant"
-              label={filtersOpen ? 'Hide sport filters' : 'Show sport filters'}
-              onPress={() => setFiltersOpen((current) => !current)}
-            />
+            <Button label="Session" icon="plus" size="sm" onPress={() => router.push('/run/new')} />
             <IconButton
               icon="map-marker-plus-outline"
               label="Add a venue"
@@ -205,38 +220,33 @@ export default function LiveScreen() {
             />
           </View>
 
-          {(!isPhone || filtersOpen) && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipRow}
-              accessibilityLabel="Filter by sport"
-            >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+            accessibilityLabel="Filter by sport"
+          >
+            <Chip
+              label="All sports"
+              icon="filter-variant"
+              selected={selectedSportIds.length === 0}
+              onPress={() => setFilterOverride({ userId: userId ?? null, sportIds: [] })}
+            />
+            {activeSports.map((sport) => (
               <Chip
-                label="All sports"
-                icon="filter-variant"
-                selected={selectedSportIds.length === 0}
-                onPress={() => setFilterOverride({ userId: userId ?? null, sportIds: [] })}
+                key={sport.id}
+                label={sport.name}
+                icon={sportIcon(sport.slug) as IconName}
+                selected={selectedSportIds.includes(sport.id)}
+                onPress={() => toggleSport(sport.id)}
               />
-              {activeSports.map((sport) => (
-                <Chip
-                  key={sport.id}
-                  label={sport.name}
-                  icon={sportIcon(sport.slug) as IconName}
-                  selected={selectedSportIds.includes(sport.id)}
-                  onPress={() => toggleSport(sport.id)}
-                />
-              ))}
-            </ScrollView>
-          )}
+            ))}
+          </ScrollView>
         </AdaptiveGlassSurface>
       </View>
 
       {/* --- Right-hand floating controls --- */}
-      <View
-        style={[styles.sideControls, { top: insets.top + (isPhone && !filtersOpen ? 84 : 132) }]}
-        pointerEvents="box-none"
-      >
+      <View style={[styles.sideControls, { top: insets.top + 132 }]} pointerEvents="box-none">
         <AdaptiveGlassSurface borderRadius={radius.pill} style={styles.controlStack}>
           <PressableSurface
             onPress={() => setView(view === 'map' ? 'list' : 'map')}
@@ -278,10 +288,7 @@ export default function LiveScreen() {
       {/* Permission denial is explained where it happened, and never blocks
           browsing — the map keeps working, it just cannot centre on you. */}
       {(locationState.status === 'denied' || locationState.status === 'unavailable') && (
-        <View
-          style={[styles.notice, { top: insets.top + (isPhone && !filtersOpen ? 84 : 132) }]}
-          pointerEvents="box-none"
-        >
+        <View style={[styles.notice, { top: insets.top + 132 }]} pointerEvents="box-none">
           <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
             <AppText variant="caption">
               {locationState.status === 'denied'
@@ -310,9 +317,7 @@ export default function LiveScreen() {
           {listContent}
         </ResultsSheet>
       ) : (
-        <View style={{ flex: 1, paddingTop: insets.top + (isPhone && !filtersOpen ? 82 : 130) }}>
-          {listContent}
-        </View>
+        <View style={{ flex: 1, paddingTop: insets.top + 130 }}>{listContent}</View>
       )}
     </View>
   );
