@@ -1,12 +1,9 @@
-import { Body, ComingInPhase, Screen, Title } from '../../src/components/screen';
+import { Body, Screen, Title } from '../../src/components/screen';
+import { SignInForm } from '../../src/features/auth/sign-in-form';
 
 /**
- * Sign-in placeholder.
- *
- * The auth method is still an open owner decision (docs/product-rules.md
- * §Open decisions), with email one-time code as the recommended default and
- * social sign-in later. Building the form now would mean guessing, so this
- * route exists and says so.
+ * Passwordless Supabase email sign-in. Browsing remains available without an
+ * account; this route is used only when somebody chooses an account action.
  */
 export default function SignInScreen() {
   return (
@@ -17,10 +14,7 @@ export default function SignInScreen() {
         one.
       </Body>
 
-      <ComingInPhase phase="Phase 2">
-        Email one-time code, then session persistence through the device keychain. The storage
-        adapter is already built — see src/lib/secure-storage.ts.
-      </ComingInPhase>
+      <SignInForm />
     </Screen>
   );
 }

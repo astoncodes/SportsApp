@@ -1,15 +1,16 @@
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, SectionList, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState, Skeleton } from '../../src/components/ui/activity';
-import { AppText, Chip, PressableSurface, sportIcon } from '../../src/components/ui/primitives';
+import { AppText, Button, Chip, sportIcon } from '../../src/components/ui/primitives';
+import { useJoinSession } from '../../src/features/community/api';
 import { useSports, useUpcomingRuns } from '../../src/features/venues/api';
 import type { UpcomingRun } from '../../src/features/venues/api';
 import { distanceLabel, timeOfDay, weekdayGroup, weekdayName } from '../../src/lib/format';
 import { elevation, radius, space, usePalette } from '../../src/theme';
+import { useSession } from '../../src/providers/auth-context';
 import type { IconName } from '../../src/components/ui/primitives';
 
 /**
@@ -23,6 +24,8 @@ export default function ScheduledScreen() {
   const colors = usePalette();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { session } = useSession();
+  const join = useJoinSession();
   const [selectedSportIds, setSelectedSportIds] = useState<number[]>([]);
 
   const sports = useSports();
@@ -44,6 +47,22 @@ export default function ScheduledScreen() {
   }, [runs.data]);
 
   const activeSports = (sports.data ?? []).filter((sport) => sport.is_active);
+
+  async function handleJoin(item: UpcomingRun) {
+    if (!session) {
+      router.push('/sign-in');
+      return;
+    }
+    try {
+      const sessionId = await join.mutateAsync({
+        runSeriesId: item.run_series_id,
+        occurrenceDate: item.occurrence_date,
+      });
+      router.push(`/session/${sessionId}`);
+    } catch (error) {
+      Alert.alert('Could not join', error instanceof Error ? error.message : 'Please try again.');
+    }
+  }
 
   return (
     <View
@@ -112,60 +131,61 @@ export default function ScheduledScreen() {
             </AppText>
           )}
           renderItem={({ item }) => (
-            <PressableSurface
-              onPress={() => router.push(`/venue/${item.venue_id}`)}
-              accessibilityLabel={`${item.title ?? item.sport_name} at ${item.venue_name}, ${weekdayName(item.starts_at)} ${timeOfDay(item.starts_at)}`}
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+                elevation.card,
+              ]}
             >
-              <View
-                style={[
-                  styles.card,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  elevation.card,
-                ]}
-              >
-                <View style={styles.timeBlock}>
-                  <AppText variant="bodyStrong">{timeOfDay(item.starts_at)}</AppText>
-                  <AppText variant="micro" tone="muted">
-                    {weekdayName(item.starts_at).slice(0, 3).toUpperCase()}
-                  </AppText>
-                </View>
-
-                <View style={{ flex: 1, gap: 3 }}>
-                  <AppText variant="heading" numberOfLines={1}>
-                    {item.title ?? `${item.sport_name} run`}
-                  </AppText>
-                  <AppText variant="caption" tone="muted" numberOfLines={1}>
-                    {item.venue_name}
-                    {item.organizer_name ? ` · ${item.organizer_name}` : ''}
-                  </AppText>
-
-                  <View style={styles.chipInline}>
-                    <Chip
-                      label={item.sport_name}
-                      icon={sportIcon(item.sport_slug) as IconName}
-                      compact
-                    />
-                    {item.expected_players != null && (
-                      <Chip
-                        label={`~${item.expected_players} players`}
-                        icon="account-group"
-                        compact
-                      />
-                    )}
-                    {item.is_rescheduled && (
-                      <Chip label="Moved" tone="soon" compact icon="calendar-edit" />
-                    )}
-                    <Chip
-                      label={item.indoor_state === 'indoor' ? 'Indoor' : 'Outdoor'}
-                      icon={item.indoor_state === 'indoor' ? 'home-variant' : 'weather-sunny'}
-                      compact
-                    />
-                  </View>
-                </View>
-
-                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+              <View style={styles.timeBlock}>
+                <AppText variant="bodyStrong">{timeOfDay(item.starts_at)}</AppText>
+                <AppText variant="micro" tone="muted">
+                  {weekdayName(item.starts_at).slice(0, 3).toUpperCase()}
+                </AppText>
               </View>
-            </PressableSurface>
+
+              <View style={{ flex: 1, gap: 3 }}>
+                <AppText variant="heading" numberOfLines={1}>
+                  {item.title ?? `${item.sport_name} run`}
+                </AppText>
+                <AppText variant="caption" tone="muted" numberOfLines={1}>
+                  {item.venue_name}
+                  {item.organizer_name ? ` · ${item.organizer_name}` : ''}
+                </AppText>
+
+                <View style={styles.chipInline}>
+                  <Chip
+                    label={item.sport_name}
+                    icon={sportIcon(item.sport_slug) as IconName}
+                    compact
+                  />
+                  {item.expected_players != null && (
+                    <Chip
+                      label={`~${item.expected_players} players`}
+                      icon="account-group"
+                      compact
+                    />
+                  )}
+                  {item.is_rescheduled && (
+                    <Chip label="Moved" tone="soon" compact icon="calendar-edit" />
+                  )}
+                  <Chip
+                    label={item.indoor_state === 'indoor' ? 'Indoor' : 'Outdoor'}
+                    icon={item.indoor_state === 'indoor' ? 'home-variant' : 'weather-sunny'}
+                    compact
+                  />
+                </View>
+              </View>
+
+              <Button
+                label="Join"
+                icon="account-plus"
+                size="sm"
+                onPress={() => handleJoin(item)}
+                loading={join.isPending && join.variables?.runSeriesId === item.run_series_id}
+              />
+            </View>
           )}
           ListEmptyComponent={
             <EmptyState

@@ -335,3 +335,55 @@ select '5eedaaaa-0000-4000-8000-000000000004'::uuid,
     where u.run_series_id = '5eedaaaa-0000-4000-8000-000000000004'::uuid
  )
 on conflict do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Session community demo — dated membership, private chat and public posts
+-- ---------------------------------------------------------------------------
+
+insert into public.run_sessions (
+  id, run_series_id, occurrence_date, starts_at, ends_at, venue_id, sport_id, region_id
+)
+select d.session_id::uuid, u.run_series_id, u.occurrence_date, u.starts_at,
+       u.ends_at, u.venue_id, u.sport_id, rs.region_id
+  from (values
+    ('5eedcccc-0000-4000-8000-000000000001', '5eedaaaa-0000-4000-8000-000000000001'),
+    ('5eedcccc-0000-4000-8000-000000000002', '5eedaaaa-0000-4000-8000-000000000003'),
+    ('5eedcccc-0000-4000-8000-000000000003', '5eedaaaa-0000-4000-8000-000000000005')
+  ) as d(session_id, series_id)
+  join lateral (
+    select x.* from public.upcoming_runs(null, null, null, now(), 14) x
+     where x.run_series_id = d.series_id::uuid order by x.starts_at limit 1
+  ) u on true
+  join public.run_series rs on rs.id = u.run_series_id
+on conflict (id) do nothing;
+
+insert into public.session_memberships (session_id, user_id, role)
+values
+  ('5eedcccc-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000001', 'organizer'),
+  ('5eedcccc-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000002', 'player'),
+  ('5eedcccc-0000-4000-8000-000000000002', '5eed0001-0000-4000-8000-000000000003', 'organizer'),
+  ('5eedcccc-0000-4000-8000-000000000002', '5eed0001-0000-4000-8000-000000000004', 'player'),
+  ('5eedcccc-0000-4000-8000-000000000003', '5eed0001-0000-4000-8000-000000000005', 'organizer')
+on conflict do nothing;
+
+insert into public.session_messages (id, session_id, user_id, body, created_at)
+values
+  ('5eeddddd-0000-4000-8000-000000000001', '5eedcccc-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000001', 'I will bring the pinnies. Meet beside the east goal.', now() - interval '35 minutes'),
+  ('5eeddddd-0000-4000-8000-000000000002', '5eedcccc-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000002', 'Perfect — I can bring an extra ball.', now() - interval '18 minutes')
+on conflict do nothing;
+
+insert into public.session_posts (id, session_id, author_id, caption, created_at)
+values
+  ('5eedeeee-0000-4000-8000-000000000001', '5eedcccc-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000001', 'Great turnout last week. We are back at the turf tonight — all levels welcome.', now() - interval '42 minutes'),
+  ('5eedeeee-0000-4000-8000-000000000002', '5eedcccc-0000-4000-8000-000000000002', '5eed0001-0000-4000-8000-000000000003', 'A few moments from beach volleyball. Nets go up at six tomorrow!', now() - interval '3 hours'),
+  ('5eedeeee-0000-4000-8000-000000000003', '5eedcccc-0000-4000-8000-000000000003', '5eed0001-0000-4000-8000-000000000005', 'Morning crew keeps growing. Beginners and first-timers are welcome.', now() - interval '1 day')
+on conflict do nothing;
+
+insert into public.session_media (
+  id, post_id, uploader_id, kind, remote_url, width, height, duration_seconds
+)
+values
+  ('5eedffff-0000-4000-8000-000000000001', '5eedeeee-0000-4000-8000-000000000001', '5eed0001-0000-4000-8000-000000000001', 'image', 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?auto=format&fit=crop&w=1200&q=80', 1200, 800, null),
+  ('5eedffff-0000-4000-8000-000000000002', '5eedeeee-0000-4000-8000-000000000002', '5eed0001-0000-4000-8000-000000000003', 'image', 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?auto=format&fit=crop&w=1200&q=80', 1200, 800, null),
+  ('5eedffff-0000-4000-8000-000000000003', '5eedeeee-0000-4000-8000-000000000003', '5eed0001-0000-4000-8000-000000000005', 'image', 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?auto=format&fit=crop&w=1200&q=80', 1200, 800, null)
+on conflict do nothing;

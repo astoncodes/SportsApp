@@ -5,6 +5,7 @@ export default function AuthLayout() {
     <Stack screenOptions={{ headerShown: true }}>
       <Stack.Screen name="sign-in" options={{ title: 'Sign in' }} />
       <Stack.Screen name="onboarding" options={{ title: 'Pick your sports' }} />
+      <Stack.Screen name="callback" options={{ title: 'Signing in', headerBackVisible: false }} />
     </Stack>
   );
 }

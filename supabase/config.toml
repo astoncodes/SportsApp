@@ -172,6 +172,10 @@ additional_redirect_urls = [
   # Expo dev server (web target).
   "http://localhost:8081",
   "http://127.0.0.1:8081",
+  "http://localhost:8081/callback",
+  "http://127.0.0.1:8081/callback",
+  # Expo Go uses an exp:// callback while development builds use dropin://.
+  "exp://**/callback",
   # Mobile deep link — matches `scheme` in apps/mobile/app.config.ts.
   "dropin://",
   "dropin://**",

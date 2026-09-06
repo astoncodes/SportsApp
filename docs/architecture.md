@@ -130,6 +130,15 @@ OSM data is free; OSM _infrastructure_ is not a production dependency you get fo
   release. See the [tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 - Public Nominatim is not for autocomplete and not for bulk reverse-geocoding.
   See the [Nominatim policy](https://operations.osmfoundation.org/policies/nominatim/).
+- Venue submission search is therefore an explicit user action, never a
+  search-as-you-type request. Identical searches are cached for the app session
+  and uncached requests are spaced at least 1.1 seconds apart.
+- A search result only positions a draft pin. The user can tap the map or drag
+  that pin, and `submit_venue()` stores the final confirmed coordinate in
+  PostGIS. Discovery and proximity queries read that stored coordinate; they do
+  not call the geocoder again.
+- The Nominatim base URL is supplied through app configuration so a cached
+  proxy or replacement provider can be adopted without changing feature code.
 - Human reviewers provide the initial Charlottetown display names. This is not a fallback — for
   ~90 venues in a city you know, it produces better names than any geocoder would.
 - Mobile starts with `react-native-maps` behind a `MapViewAdapter` seam so the provider can change.

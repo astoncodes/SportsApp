@@ -452,6 +452,211 @@ export type Database = {
           },
         ]
       }
+      run_sessions: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          occurrence_date: string
+          region_id: number
+          run_series_id: string
+          sport_id: number
+          starts_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          occurrence_date: string
+          region_id: number
+          run_series_id: string
+          sport_id: number
+          starts_at: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          occurrence_date?: string
+          region_id?: number
+          run_series_id?: string
+          sport_id?: number
+          starts_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_sessions_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_sessions_run_series_id_fkey"
+            columns: ["run_series_id"]
+            isOneToOne: false
+            referencedRelation: "run_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_sessions_sport_id_fkey"
+            columns: ["sport_id"]
+            isOneToOne: false
+            referencedRelation: "sports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_media: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          height: number | null
+          id: string
+          kind: Database["public"]["Enums"]["session_media_kind"]
+          post_id: string
+          remote_url: string | null
+          storage_path: string | null
+          uploader_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          kind: Database["public"]["Enums"]["session_media_kind"]
+          post_id: string
+          remote_url?: string | null
+          storage_path?: string | null
+          uploader_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          height?: number | null
+          id?: string
+          kind?: Database["public"]["Enums"]["session_media_kind"]
+          post_id?: string
+          remote_url?: string | null
+          storage_path?: string | null
+          uploader_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "session_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_memberships: {
+        Row: {
+          joined_at: string
+          role: Database["public"]["Enums"]["session_member_role"]
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          joined_at?: string
+          role?: Database["public"]["Enums"]["session_member_role"]
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          joined_at?: string
+          role?: Database["public"]["Enums"]["session_member_role"]
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_memberships_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "run_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "run_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_posts: {
+        Row: {
+          author_id: string
+          caption: string | null
+          created_at: string
+          id: string
+          session_id: string
+        }
+        Insert: {
+          author_id: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          session_id: string
+        }
+        Update: {
+          author_id?: string
+          caption?: string | null
+          created_at?: string
+          id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_posts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "run_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sports: {
         Row: {
           created_at: string
@@ -510,6 +715,163 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_candidate_matches: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          distance_m: number
+          name_similarity: number
+          score: number
+          shared_sport_count: number
+          venue_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          distance_m: number
+          name_similarity: number
+          score: number
+          shared_sport_count: number
+          venue_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          distance_m?: number
+          name_similarity?: number
+          score?: number
+          shared_sport_count?: number
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_candidate_matches_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "venue_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_candidate_matches_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_candidate_sports: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          origin: Database["public"]["Enums"]["venue_candidate_sport_origin"]
+          sport_id: number
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          origin?: Database["public"]["Enums"]["venue_candidate_sport_origin"]
+          sport_id: number
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          origin?: Database["public"]["Enums"]["venue_candidate_sport_origin"]
+          sport_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_candidate_sports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "venue_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_candidate_sports_sport_id_fkey"
+            columns: ["sport_id"]
+            isOneToOne: false
+            referencedRelation: "sports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_candidates: {
+        Row: {
+          address_text: string | null
+          created_at: string
+          duplicate_of_venue_id: string | null
+          id: string
+          indoor_state: Database["public"]["Enums"]["indoor_state"]
+          location: unknown
+          proposed_name: string
+          published_venue_id: string | null
+          region_id: number
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["venue_candidate_status"]
+          submitted_by: string
+          updated_at: string
+        }
+        Insert: {
+          address_text?: string | null
+          created_at?: string
+          duplicate_of_venue_id?: string | null
+          id?: string
+          indoor_state: Database["public"]["Enums"]["indoor_state"]
+          location: unknown
+          proposed_name: string
+          published_venue_id?: string | null
+          region_id: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["venue_candidate_status"]
+          submitted_by: string
+          updated_at?: string
+        }
+        Update: {
+          address_text?: string | null
+          created_at?: string
+          duplicate_of_venue_id?: string | null
+          id?: string
+          indoor_state?: Database["public"]["Enums"]["indoor_state"]
+          location?: unknown
+          proposed_name?: string
+          published_venue_id?: string | null
+          region_id?: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["venue_candidate_status"]
+          submitted_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_candidates_duplicate_of_venue_id_fkey"
+            columns: ["duplicate_of_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_candidates_published_venue_id_fkey"
+            columns: ["published_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_candidates_region_id_fkey"
+            columns: ["region_id"]
+            isOneToOne: false
+            referencedRelation: "regions"
             referencedColumns: ["id"]
           },
         ]
@@ -696,6 +1058,11 @@ export type Database = {
         }[]
       }
       is_admin: { Args: { p_user_id?: string }; Returns: boolean }
+      is_session_member: { Args: { p_session_id: string }; Returns: boolean }
+      join_run_session: {
+        Args: { p_occurrence_date: string; p_run_series_id: string }
+        Returns: string
+      }
       nearby_venues: {
         Args: {
           p_lat: number
@@ -721,6 +1088,20 @@ export type Database = {
           sport_slugs: string[]
           venue_id: string
           verification_state: Database["public"]["Enums"]["verification_state"]
+        }[]
+      }
+      submit_venue: {
+        Args: {
+          p_address_text?: string
+          p_indoor_state: Database["public"]["Enums"]["indoor_state"]
+          p_lat: number
+          p_lon: number
+          p_name: string
+          p_sport_ids: number[]
+        }
+        Returns: {
+          candidate_id: string
+          status: Database["public"]["Enums"]["venue_candidate_status"]
         }[]
       }
       upcoming_runs: {
@@ -752,6 +1133,28 @@ export type Database = {
           venue_id: string
           venue_name: string
         }[]
+      }
+      update_own_profile: {
+        Args: {
+          p_complete_onboarding?: boolean
+          p_display_name: string
+          p_sport_ids: number[]
+        }
+        Returns: {
+          avatar_path: string | null
+          created_at: string
+          display_name: string
+          home_region_id: number | null
+          id: string
+          onboarding_completed_at: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       venue_activity: {
         Args: { p_venue_id: string }
@@ -797,6 +1200,15 @@ export type Database = {
       indoor_state: "indoor" | "outdoor" | "unknown"
       run_exception_status: "cancelled" | "rescheduled"
       run_series_status: "active" | "inactive" | "removed"
+      session_media_kind: "image" | "video"
+      session_member_role: "organizer" | "player"
+      venue_candidate_sport_origin: "submitted" | "reviewer"
+      venue_candidate_status:
+        | "pending"
+        | "possible_duplicate"
+        | "approved"
+        | "merged"
+        | "rejected"
       venue_condition_kind:
         | "lights_on"
         | "lights_off"
@@ -938,6 +1350,16 @@ export const Constants = {
       indoor_state: ["indoor", "outdoor", "unknown"],
       run_exception_status: ["cancelled", "rescheduled"],
       run_series_status: ["active", "inactive", "removed"],
+      session_media_kind: ["image", "video"],
+      session_member_role: ["organizer", "player"],
+      venue_candidate_sport_origin: ["submitted", "reviewer"],
+      venue_candidate_status: [
+        "pending",
+        "possible_duplicate",
+        "approved",
+        "merged",
+        "rejected",
+      ],
       venue_condition_kind: [
         "lights_on",
         "lights_off",

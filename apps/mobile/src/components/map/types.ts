@@ -21,7 +21,11 @@ export type MapMarker = {
   isPending: boolean;
   label: string;
   selected?: boolean;
+  /** Used by location pickers; venue markers are never draggable. */
+  draggable?: boolean;
 };
+
+export type MapCoordinate = { latitude: number; longitude: number };
 
 export type MapRegion = {
   latitude: number;
@@ -34,6 +38,9 @@ export type VenueMapProps = {
   region: MapRegion;
   markers: MapMarker[];
   onSelectMarker?: (id: string) => void;
+  onMarkerDragEnd?: (id: string, coordinate: MapCoordinate) => void;
+  /** Optional map-tap handler used to position a draft pin. */
+  onPressCoordinate?: (coordinate: MapCoordinate) => void;
   onRegionChange?: (region: MapRegion) => void;
   /** Blue dot for the user, when location permission has been granted. */
   userLocation?: { latitude: number; longitude: number } | null;

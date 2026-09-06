@@ -13,7 +13,8 @@
 
 ## 1. Product in one sentence
 
-A mobile app that shows where pickup sports are active now, lets players broadcast a short-lived on-site check-in, and lists trustworthy recurring runs nearby.
+A mobile app that shows where pickup sports are active now, lets players broadcast a short-lived
+on-site check-in, lists trustworthy recurring runs nearby, and keeps each dated session connected.
 
 The core loop is:
 
@@ -21,9 +22,11 @@ The core loop is:
 2. See nearby venues and current activity for the sports you play.
 3. Open a venue.
 4. Check in if physically nearby, or view an upcoming recurring run.
-5. The check-in disappears automatically when it expires or the user checks out.
+5. Join a dated run to use its participant-only chat and share moments to the regional feed.
+6. The check-in disappears automatically when it expires or the user checks out.
 
-The app is a **presence and discovery tool**, not a chat app or an event-management platform.
+The app remains a **presence and discovery tool**. Chat and media are scoped to dated sessions,
+not a general-purpose social graph or event-management platform.
 
 ---
 
@@ -31,20 +34,20 @@ The app is a **presence and discovery tool**, not a chat app or an event-managem
 
 These came from the two source documents and should be treated as locked unless the owners explicitly change them.
 
-| Area                 | Decision                                                                                       |
-| -------------------- | ---------------------------------------------------------------------------------------------- |
-| Initial market       | Charlottetown and its immediate area                                                           |
-| Expansion            | Region-parameterized from day one; prove the importer against a second unpublished region      |
-| Mobile               | React Native, Expo, TypeScript                                                                 |
-| Backend              | Supabase: Postgres, PostGIS, Auth, Realtime                                                    |
-| Venue source         | OpenStreetMap through Overpass, plus moderated user submissions                                |
-| Importer             | Python CLI using a small dependency set                                                        |
-| Admin/review tooling | TypeScript                                                                                     |
-| Database workflow    | Local Supabase for schema work; hosted development project for collaborative review            |
-| Import model         | Import into staging, review, then publish; never write raw imports directly into public venues |
-| Deduplication        | Shared Postgres functions propose candidates; humans decide merges                             |
-| Scale posture        | Build inexpensive expansion seams now; defer scheduled reconciliation and job orchestration    |
-| Launch social model  | Public regional discovery filtered by sport; no follow graph or direct messages                |
+| Area                 | Decision                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| Initial market       | Charlottetown and its immediate area                                                            |
+| Expansion            | Region-parameterized from day one; prove the importer against a second unpublished region       |
+| Mobile               | React Native, Expo, TypeScript                                                                  |
+| Backend              | Supabase: Postgres, PostGIS, Auth, Realtime                                                     |
+| Venue source         | OpenStreetMap through Overpass, plus moderated user submissions                                 |
+| Importer             | Python CLI using a small dependency set                                                         |
+| Admin/review tooling | TypeScript                                                                                      |
+| Database workflow    | Local Supabase for schema work; hosted development project for collaborative review             |
+| Import model         | Import into staging, review, then publish; never write raw imports directly into public venues  |
+| Deduplication        | Shared Postgres functions propose candidates; humans decide merges                              |
+| Scale posture        | Build inexpensive expansion seams now; defer scheduled reconciliation and job orchestration     |
+| Launch social model  | Public regional session feed, participant-only session chat; no follow graph or direct messages |
 
 ---
 
@@ -122,13 +125,15 @@ Auto-expiry was defined for live check-ins but not for schedules. A weekly run f
 - User venue submissions with minimal admin approval
 - Duplicate prevention, candidate detection, and safe merge behavior
 - Realtime refresh of live activity
+- Dated-session membership with participant-only chat
+- Public regional session feed with photos and video clips capped at 30 seconds
 - Database migrations, seed data, generated TypeScript types, and automated database tests
 
 ### Explicitly excluded
 
-- Friends, followers, squads, and personalized social feeds
-- Direct messages or venue chat
-- Photos, video, highlights, and comments
+- Friends, followers, squads, and personalized follow-based feeds
+- Direct messages or venue-wide chat
+- Likes, highlights, and comments
 - Skill ratings and matchmaking
 - Tournament brackets
 - Push notifications
@@ -918,7 +923,8 @@ The MVP has validated the concept when a seeded Charlottetown user can:
 3. see whether players are currently present;
 4. check in with low friction while physically nearby;
 5. see that presence disappear reliably after checkout or expiry; and
-6. discover a current recurring run without joining a social network or chat.
+6. discover a current recurring run without joining a social network; and
+7. join one dated session, use its private participant chat, and see its public community moments.
 
 Metrics should initially answer:
 

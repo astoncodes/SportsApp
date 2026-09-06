@@ -33,8 +33,10 @@ export function ResultsSheet({
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isWide = windowWidth >= 900;
 
-  const peekOffset = Math.round(windowHeight * 0.52);
-  const expandedOffset = Math.round(windowHeight * 0.12);
+  // Preserve more of the map on phones while keeping one venue card visible;
+  // the higher expanded stop leaves room for the floating map header.
+  const peekOffset = Math.round(windowHeight * 0.6);
+  const expandedOffset = Math.round(windowHeight * 0.15);
 
   const [translateY] = useState(() => new Animated.Value(peekOffset));
   const [expanded, setExpanded] = useState(false);

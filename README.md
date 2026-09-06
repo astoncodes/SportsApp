@@ -49,6 +49,11 @@ cp .env.example .env
 | `SUPABASE_DB_URL`                                         | `DB_URL`                                                     |
 | `OVERPASS_USER_AGENT`                                     | your own — real contact details, required by Overpass policy |
 
+`EXPO_PUBLIC_NOMINATIM_URL` already defaults to the public Nominatim endpoint.
+Venue search is explicit rather than autocomplete and is intended only for
+occasional user-submitted locations; point this setting at a cached proxy or a
+replacement provider before traffic outgrows the public-service policy.
+
 Then install the Python side and confirm everything works:
 
 ```bash
@@ -83,6 +88,18 @@ development convenience, not an equivalent to the native app.
 
 An iOS simulator needs full **Xcode**, not just Command Line Tools
 (`xcode-select -p` should print a path inside `Xcode.app`).
+
+### Mobile accounts
+
+The mobile app uses Supabase Auth passwordless email links with PKCE. Open the
+Profile tab and choose **Sign in or create account**. During local development,
+the message is captured at <http://127.0.0.1:54324>; click its sign-in link to
+return to the app, choose a display name and sports, and complete onboarding.
+
+Native sessions are stored in the device keychain/keystore. Expo web uses
+`localStorage` only as a development convenience. For a hosted Supabase project,
+add the production web callback and `dropin://callback` to Auth's redirect URL
+allowlist before testing release builds.
 
 ---
 
@@ -167,6 +184,9 @@ preserved. Deduplication _proposes_; people decide. There is no automatic merge 
 
 Details in [docs/architecture.md](docs/architecture.md) and
 [docs/product-rules.md](docs/product-rules.md).
+
+Production service accounts, API keys, deployment steps, and launch checks are
+tracked in [docs/production-setup-todo.md](docs/production-setup-todo.md).
 
 ---
 

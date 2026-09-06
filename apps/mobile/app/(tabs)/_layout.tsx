@@ -4,8 +4,8 @@ import { Tabs } from 'expo-router';
 import { usePalette } from '../../src/theme';
 
 /**
- * The three destinations from the product brief: what is happening now, what
- * is scheduled, and you.
+ * Five focused mobile destinations: live map, nearby community moments,
+ * scheduled runs, private session chats, and the player's account.
  *
  * Icons are supplied explicitly. React Navigation falls back to a placeholder
  * triangle when `tabBarIcon` is omitted, which renders as a broken-looking ▼ in
@@ -41,12 +41,38 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="feed"
+        options={{
+          title: 'Feed',
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'view-dashboard' : 'view-dashboard-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="scheduled"
         options={{
           title: 'Scheduled',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'calendar' : 'calendar-blank-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="chats"
+        options={{
+          title: 'Chats',
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'chat' : 'chat-outline'}
               size={size}
               color={color}
             />
