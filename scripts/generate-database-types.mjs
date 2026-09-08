@@ -37,7 +37,7 @@ try {
     ['supabase', 'gen', 'types', 'typescript', '--project-id', ref, '--schema', 'public'],
     {
       cwd: repoRoot,
-      env: { ...process.env, SUPABASE_ACCESS_TOKEN: token },
+      env: token ? { ...process.env, SUPABASE_ACCESS_TOKEN: token } : process.env,
       encoding: 'utf8',
       maxBuffer: 32 * 1024 * 1024,
       stdio: ['ignore', 'pipe', 'inherit'],

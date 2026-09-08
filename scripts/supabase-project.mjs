@@ -13,6 +13,8 @@ export function hostedProject() {
   let token = process.env.SUPABASE_ACCESS_TOKEN;
   const saved = `${homedir()}/.supabase/access-token`;
   if (!token && existsSync(saved)) token = readFileSync(saved, 'utf8').trim();
-  if (!token) throw new Error('Set SUPABASE_ACCESS_TOKEN or sign in with the Supabase CLI.');
+  // A missing token file does not mean "not signed in": the CLI keeps its login in
+  // the OS keyring on macOS and Windows, where we cannot read it. Leave the token
+  // undefined in that case and let the CLI authenticate itself.
   return { ref, token };
 }

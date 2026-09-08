@@ -1,7 +1,8 @@
 {
-  // Build-time config files. These execute in Node under the Expo CLI and never
-  // reach the app bundle, so they get Node types and standard resolution rather
-  // than Expo's react-native condition.
+  // Build-time config files and the test suite. These execute in Node — under
+  // the Expo CLI or under vitest — and never reach the app bundle, so they get
+  // Node types and standard resolution rather than Expo's react-native
+  // condition.
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023"],
@@ -14,5 +15,5 @@
     "esModuleInterop": true,
     "resolveJsonModule": true
   },
-  "include": ["app.config.ts"]
+  "include": ["app.config.ts", "vitest.config.mts", "tests/node/**/*.ts"]
 }

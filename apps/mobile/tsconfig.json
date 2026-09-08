@@ -8,9 +8,13 @@
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  // app.config.ts and metro.config.js run in Node, not in the app bundle. They
-  // are typechecked by tsconfig.node.json instead, so that Node globals stay
-  // out of the React Native type space — where importing `node:fs` would
-  // typecheck happily and then fail on a device.
-  "exclude": ["node_modules", "app.config.ts", "metro.config.js"]
+  // app.config.ts, metro.config.js and tests/node run in Node, not in the app
+  // bundle. They are typechecked by tsconfig.node.json instead, so that Node
+  // globals stay out of the React Native type space — where importing
+  // `node:fs` would typecheck happily and then fail on a device.
+  //
+  // Tests directly under tests/ stay here because they exercise app modules
+  // that need the React Native type space (`window`, RN's AbortSignal). A test
+  // that reads a file off disk belongs in tests/node instead.
+  "exclude": ["node_modules", "app.config.ts", "metro.config.js", "tests/node", "vitest.config.mts"]
 }
