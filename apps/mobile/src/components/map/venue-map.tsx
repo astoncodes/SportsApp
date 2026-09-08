@@ -21,6 +21,7 @@ import type { VenueMapProps } from './types';
  */
 export default function VenueMap({
   region,
+  recenterRequest,
   markers,
   onSelectMarker,
   onMarkerDragEnd,
@@ -37,7 +38,7 @@ export default function VenueMap({
 
   useEffect(() => {
     mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta, longitudeDelta }, 200);
-  }, [latitude, longitude, latitudeDelta, longitudeDelta]);
+  }, [latitude, longitude, latitudeDelta, longitudeDelta, recenterRequest]);
 
   return (
     <View style={[StyleSheet.absoluteFill, style]}>

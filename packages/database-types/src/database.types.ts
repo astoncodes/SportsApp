@@ -622,18 +622,21 @@ export type Database = {
       }
       session_memberships: {
         Row: {
+          attendance: string
           joined_at: string
           role: Database["public"]["Enums"]["session_member_role"]
           session_id: string
           user_id: string
         }
         Insert: {
+          attendance?: string
           joined_at?: string
           role?: Database["public"]["Enums"]["session_member_role"]
           session_id: string
           user_id: string
         }
         Update: {
+          attendance?: string
           joined_at?: string
           role?: Database["public"]["Enums"]["session_member_role"]
           session_id?: string
@@ -1235,6 +1238,25 @@ export type Database = {
           venue_id: string
           verification_state: Database["public"]["Enums"]["verification_state"]
         }[]
+      }
+      run_attendance: {
+        Args: { p_series_ids: string[] }
+        Returns: {
+          going_count: number
+          maybe_count: number
+          my_response: string
+          occurrence_date: string
+          run_series_id: string
+          session_id: string
+        }[]
+      }
+      set_run_attendance: {
+        Args: {
+          p_attendance: string
+          p_occurrence_date: string
+          p_run_series_id: string
+        }
+        Returns: string
       }
       submit_venue: {
         Args: {

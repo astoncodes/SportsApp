@@ -155,8 +155,7 @@ export function useJoinedSessions(userId?: string) {
         const sport = labels.sports.get(session.sport_id);
         return {
           ...session,
-          title:
-            session.title ?? labels.series.get(session.run_series_id)?.title ?? 'Pickup session',
+          title: session.title ?? labels.series.get(session.run_series_id)?.title ?? 'Pickup session',
           venueName:
             session.location_name ??
             (session.venue_id ? labels.venues.get(session.venue_id) : null) ??
@@ -208,15 +207,17 @@ export function useSessionOverview(sessionId?: string, userId?: string) {
       const labels = await sessionLabels([result.data]);
       const sport = labels.sports.get(result.data.sport_id);
       let isMember = false;
+      let attendance: string | null = null;
       if (userId) {
         const membership = await supabase
           .from('session_memberships')
-          .select('session_id')
+          .select('session_id,attendance')
           .eq('session_id', sessionId!)
           .eq('user_id', userId)
           .maybeSingle();
         if (membership.error) throw membership.error;
         isMember = Boolean(membership.data);
+        attendance = membership.data?.attendance ?? null;
       }
       return {
         ...result.data,
@@ -233,6 +234,7 @@ export function useSessionOverview(sessionId?: string, userId?: string) {
         sportName: sport?.name ?? 'Sport',
         sportSlug: sport?.slug ?? '',
         isMember,
+        attendance,
       };
     },
   });
@@ -241,15 +243,26 @@ export function useSessionOverview(sessionId?: string, userId?: string) {
 export function useJoinSession() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { runSeriesId: string; occurrenceDate: string }) => {
-      const { data, error } = await supabase.rpc('join_run_session', {
+    mutationFn: async (input: {
+      runSeriesId: string;
+      occurrenceDate: string;
+      attendance?: 'going' | 'maybe';
+    }) => {
+      const { data, error } = await supabase.rpc('set_run_attendance', {
         p_run_series_id: input.runSeriesId,
         p_occurrence_date: input.occurrenceDate,
+        p_attendance: input.attendance ?? 'going',
       });
       if (error) throw error;
       return data;
     },
-    onSuccess: () => client.invalidateQueries({ queryKey: ['joined-sessions'] }),
+    onSuccess: async () => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['joined-sessions'] }),
+        client.invalidateQueries({ queryKey: ['run-attendance'] }),
+        client.invalidateQueries({ queryKey: ['session-overview'] }),
+      ]);
+    },
   });
 }
 
@@ -389,6 +402,20 @@ export function usePublishSessionPost(sessionId: string, userId: string) {
       };
     }) => publishSessionPost({ ...input, sessionId, userId }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['community-feed'] }),
+  });
+}
+
+export function useRunAttendance(seriesIds: string[], userId?: string) {
+  const ids = [...new Set(seriesIds)].sort();
+  return useQuery({
+    queryKey: ['run-attendance', ids, userId],
+    enabled: ids.length > 0,
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('run_attendance', { p_series_ids: ids });
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 }
 

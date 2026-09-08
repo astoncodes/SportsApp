@@ -87,6 +87,13 @@ const config: ExpoConfig = {
 
   plugins: [
     'expo-router',
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Allow Drop In to use your location to find nearby sports venues and verify check-ins.',
+      },
+    ],
     'expo-video',
     [
       'expo-image-picker',

@@ -43,6 +43,7 @@ function markerHtml(marker: MapMarker, scheme: 'light' | 'dark'): string {
 
 export default function VenueMap({
   region,
+  recenterRequest,
   markers,
   onSelectMarker,
   onMarkerDragEnd,
@@ -187,8 +188,8 @@ export default function VenueMap({
     mapRef.current?.setView([region.latitude, region.longitude], mapRef.current.getZoom(), {
       animate: true,
     });
-    // Only recentre on an explicit coordinate change (Locate me, region switch).
-  }, [region.latitude, region.longitude]);
+    // A location request also recentres when the device has not moved.
+  }, [region.latitude, region.longitude, recenterRequest]);
 
   return (
     <div
