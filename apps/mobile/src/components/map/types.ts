@@ -40,6 +40,8 @@ export type MapRegion = {
 
 export type VenueMapProps = {
   region: MapRegion;
+  /** Increment to recenter even when the target coordinates have not changed. */
+  recenterRequest?: number;
   markers: MapMarker[];
   onSelectMarker?: (id: string) => void;
   onMarkerDragEnd?: (id: string, coordinate: MapCoordinate) => void;

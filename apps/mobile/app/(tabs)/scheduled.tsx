@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState, Skeleton } from '../../src/components/ui/activity';
 import { AppText, Button, Chip, sportIcon } from '../../src/components/ui/primitives';
-import { useJoinSession } from '../../src/features/community/api';
+import { useJoinSession, useRunAttendance } from '../../src/features/community/api';
 import { useSports, useUpcomingRuns } from '../../src/features/venues/api';
 import type { UpcomingRun } from '../../src/features/venues/api';
 import { distanceLabel, timeOfDay, weekdayGroup, weekdayName } from '../../src/lib/format';
@@ -14,11 +14,8 @@ import { useSession } from '../../src/providers/auth-context';
 import type { IconName } from '../../src/components/ui/primitives';
 
 /**
- * Scheduled — "what reliable run can I join later?"
- *
- * The half of the product that has content before anyone has checked in
- * anywhere. A weekly listing is useful with zero live users, which is what
- * makes the cold-start problem survivable.
+ * Scheduled collects the caller's hosted, Going, and Maybe occurrences.
+ * Browse keeps discovery available without mixing it into their own plans.
  */
 export default function ScheduledScreen() {
   const colors = usePalette();
@@ -26,10 +23,26 @@ export default function ScheduledScreen() {
   const router = useRouter();
   const { session } = useSession();
   const join = useJoinSession();
+  const [scope, setScope] = useState<'mine' | 'browse'>('mine');
   const [selectedSportIds, setSelectedSportIds] = useState<number[]>([]);
 
   const sports = useSports();
-  const runs = useUpcomingRuns({ sportIds: selectedSportIds, days: 14 });
+  const runs = useUpcomingRuns({ sportIds: selectedSportIds, days: scope === 'mine' ? 84 : 14 });
+
+  const attendance = useRunAttendance(
+    (runs.data ?? []).map((run) => run.run_series_id),
+    session?.user.id,
+  );
+  const responses = useMemo(
+    () =>
+      new Map(
+        (attendance.data ?? []).map((item) => [
+          `${item.run_series_id}-${item.occurrence_date}`,
+          item,
+        ]),
+      ),
+    [attendance.data],
+  );
 
   const sections = useMemo(() => {
     const buckets: Record<'today' | 'tomorrow' | 'week', UpcomingRun[]> = {
@@ -37,30 +50,41 @@ export default function ScheduledScreen() {
       tomorrow: [],
       week: [],
     };
-    for (const run of runs.data ?? []) buckets[weekdayGroup(run.starts_at)].push(run);
+    for (const run of runs.data ?? []) {
+      const response = responses.get(`${run.run_series_id}-${run.occurrence_date}`);
+      if (
+        scope === 'mine' &&
+        (!session || (run.organizer_id !== session.user.id && !response?.my_response))
+      )
+        continue;
+      buckets[weekdayGroup(run.starts_at)].push(run);
+    }
 
     return [
       { key: 'today', title: 'Today', data: buckets.today },
       { key: 'tomorrow', title: 'Tomorrow', data: buckets.tomorrow },
-      { key: 'week', title: 'This week', data: buckets.week },
+      { key: 'week', title: 'Coming up', data: buckets.week },
     ].filter((section) => section.data.length > 0);
-  }, [runs.data]);
+  }, [runs.data, responses, scope, session]);
 
   const activeSports = (sports.data ?? []).filter((sport) => sport.is_active);
 
-  async function handleJoin(item: UpcomingRun) {
+  async function handleJoin(item: UpcomingRun, response: 'going' | 'maybe') {
     if (!session) {
       router.push('/sign-in');
       return;
     }
     try {
-      const sessionId = await join.mutateAsync({
+      await join.mutateAsync({
         runSeriesId: item.run_series_id,
         occurrenceDate: item.occurrence_date,
+        attendance: response,
       });
-      router.push(`/session/${sessionId}`);
     } catch (error) {
-      Alert.alert('Could not join', error instanceof Error ? error.message : 'Please try again.');
+      Alert.alert(
+        'Could not save response',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
     }
   }
 
@@ -71,7 +95,9 @@ export default function ScheduledScreen() {
       <View style={{ paddingHorizontal: space.lg, gap: 2 }}>
         <AppText variant="display">Scheduled</AppText>
         <AppText variant="body" tone="muted">
-          Sports sessions near you over the next two weeks.
+          {scope === 'mine'
+            ? 'Sessions you host, are going to, or might join.'
+            : 'Sports sessions near you over the next two weeks.'}
         </AppText>
         <View style={{ marginTop: space.md }}>
           <Button
@@ -82,9 +108,17 @@ export default function ScheduledScreen() {
         </View>
       </View>
 
+      <View style={{ flexDirection: 'row', gap: space.sm, padding: space.lg }}>
+        <Chip label="My schedule" selected={scope === 'mine'} onPress={() => setScope('mine')} />
+        <Chip
+          label="Browse runs"
+          selected={scope === 'browse'}
+          onPress={() => setScope('browse')}
+        />
+      </View>
+
       <ScrollView
         horizontal
-        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipRow}
         accessibilityLabel="Filter runs by sport"
@@ -112,7 +146,22 @@ export default function ScheduledScreen() {
         ))}
       </ScrollView>
 
-      {runs.isPending ? (
+      {scope === 'mine' && !session ? (
+        <View style={{ padding: space.lg, gap: space.md }}>
+          <EmptyState
+            icon="calendar"
+            title="Your schedule"
+            body="Sign in to see sessions you host, are going to, or marked Maybe."
+          />
+          <Button label="Sign in" onPress={() => router.push('/sign-in')} />
+        </View>
+      ) : runs.isError || attendance.isError ? (
+        <EmptyState
+          icon="wifi-off"
+          title="Could not load sessions"
+          body="Check your connection and try again."
+        />
+      ) : runs.isPending || ((runs.data?.length ?? 0) > 0 && attendance.isPending) ? (
         <View style={{ padding: space.lg, gap: space.md }}>
           {[0, 1, 2].map((key) => (
             <Skeleton key={key} height={92} />
@@ -186,23 +235,70 @@ export default function ScheduledScreen() {
                 </View>
               </View>
 
-              <Button
-                label="Join"
-                icon="account-plus"
-                size="sm"
-                onPress={() => handleJoin(item)}
-                loading={join.isPending && join.variables?.runSeriesId === item.run_series_id}
-              />
+              <View
+                style={{
+                  width: '100%',
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: space.xs,
+                }}
+              >
+                {item.organizer_id === session?.user.id && <Chip label="Hosting" compact />}
+                <Button
+                  label={
+                    responses.get(`${item.run_series_id}-${item.occurrence_date}`)?.my_response ===
+                    'going'
+                      ? 'Going ✓'
+                      : 'Going +1'
+                  }
+                  size="sm"
+                  onPress={() => handleJoin(item, 'going')}
+                  disabled={join.isPending}
+                />
+                <Button
+                  label={
+                    responses.get(`${item.run_series_id}-${item.occurrence_date}`)?.my_response ===
+                    'maybe'
+                      ? 'Maybe ✓'
+                      : 'Maybe'
+                  }
+                  size="sm"
+                  tone="neutral"
+                  onPress={() => handleJoin(item, 'maybe')}
+                  disabled={join.isPending}
+                />
+                <AppText variant="micro" tone="muted">
+                  {responses.get(`${item.run_series_id}-${item.occurrence_date}`)?.going_count ?? 0}{' '}
+                  going ·{' '}
+                  {responses.get(`${item.run_series_id}-${item.occurrence_date}`)?.maybe_count ?? 0}{' '}
+                  maybe
+                </AppText>
+                {responses.get(`${item.run_series_id}-${item.occurrence_date}`)?.session_id && (
+                  <Button
+                    label="Open"
+                    size="sm"
+                    variant="soft"
+                    onPress={() =>
+                      router.push(
+                        `/session/${responses.get(`${item.run_series_id}-${item.occurrence_date}`)!.session_id}`,
+                      )
+                    }
+                  />
+                )}
+              </View>
             </View>
           )}
           ListEmptyComponent={
             <EmptyState
               icon="calendar-plus"
-              title="No runs scheduled yet"
+              title="Nothing scheduled yet"
               body={
                 selectedSportIds.length > 0
-                  ? 'Nothing in these sports over the next two weeks. Try clearing the filter.'
-                  : 'Create the first session and invite people to play.'
+                  ? 'No sessions match these sports. Try clearing the filter.'
+                  : scope === 'mine'
+                    ? 'Choose Going or Maybe on a session to add it here. Runs you host also appear here.'
+                    : 'No runs have been posted for the next two weeks.'
               }
             />
           }
@@ -216,6 +312,7 @@ const styles = StyleSheet.create({
   chipRow: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
   card: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: space.md,
     borderRadius: radius.xl,

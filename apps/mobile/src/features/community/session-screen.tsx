@@ -75,15 +75,23 @@ export function SessionScreen() {
     );
   }
 
-  async function handleJoin() {
+  async function handleJoin(attendance: 'going' | 'maybe') {
     if (!session) return router.push('/sign-in');
     const item = overview.data;
     if (!item) return;
-    await join.mutateAsync({
-      runSeriesId: item.run_series_id,
-      occurrenceDate: item.occurrence_date,
-    });
-    await overview.refetch();
+    try {
+      await join.mutateAsync({
+        runSeriesId: item.run_series_id,
+        occurrenceDate: item.occurrence_date,
+        attendance,
+      });
+      await overview.refetch();
+    } catch (error) {
+      Alert.alert(
+        'Could not save response',
+        error instanceof Error ? error.message : 'Please try again.',
+      );
+    }
   }
 
   async function handleSend() {
@@ -148,6 +156,22 @@ export function SessionScreen() {
             <AppText variant="body" tone="muted">
               This session is no longer happening. Existing chat and posts are kept for reference.
             </AppText>
+          </View>
+        )}
+
+        {!cancelled && item.isMember && (
+          <View style={styles.tools}>
+            <Button
+              label={item.attendance === 'going' ? 'Going ✓' : 'Going +1'}
+              onPress={() => handleJoin('going')}
+              disabled={join.isPending}
+            />
+            <Button
+              label={item.attendance === 'maybe' ? 'Maybe ✓' : 'Maybe'}
+              tone="neutral"
+              onPress={() => handleJoin('maybe')}
+              disabled={join.isPending}
+            />
           </View>
         )}
         <View style={{ padding: space.lg, gap: space.sm }}>
@@ -287,7 +311,7 @@ export function SessionScreen() {
               <Button
                 label={session ? 'Join session' : 'Sign in to join'}
                 icon="account-plus"
-                onPress={() => void handleJoin().catch(reportError)}
+                onPress={() => void handleJoin('going').catch(reportError)}
                 loading={join.isPending}
               />
             </View>

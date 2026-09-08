@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 
 import {
@@ -23,23 +23,24 @@ import { describe, expect, it } from 'vitest';
  * When one of these fails, the database is right and the constant is the bug.
  */
 
-const migration = (name: string) =>
-  readFileSync(
-    fileURLToPath(new URL(`../../../../supabase/migrations/${name}`, import.meta.url)),
-    'utf8',
-  );
-
-const activity = migration('20260818100100_activity.sql');
-const runs = migration('20260818100200_runs.sql');
-const discovery = migration('20260818100300_discovery.sql');
+// Read every migration and search the lot, rather than naming files. The
+// migration set gets restructured — it was consolidated into a baseline once
+// already — and a test that hardcodes filenames fails for the wrong reason when
+// that happens, which teaches people to delete the test.
+const migrationsDir = fileURLToPath(new URL('../../../../supabase/migrations', import.meta.url));
+const schema = readdirSync(migrationsDir)
+  .filter((name) => name.endsWith('.sql'))
+  .sort()
+  .map((name) => readFileSync(`${migrationsDir}/${name}`, 'utf8'))
+  .join('\n');
 
 /** Collapse whitespace so a reformatted constraint still matches. */
 const flat = (sql: string) => sql.replace(/\s+/g, ' ');
 
 describe('check-in limits mirror the database', () => {
   it('caps party size where check_ins_party_size_range does', () => {
-    const match = /party_size between (\d+) and (\d+)/.exec(flat(activity));
-    expect(match, 'check_ins_party_size_range not found in the activity migration').not.toBeNull();
+    const match = /party_size between (\d+) and (\d+)/.exec(flat(schema));
+    expect(match, 'check_ins_party_size_range not found in any migration').not.toBeNull();
 
     const [, min, max] = match!;
     expect(PARTY_SIZE.min).toBe(Number(min));
@@ -54,18 +55,18 @@ describe('check-in limits mirror the database', () => {
   it('caps the note where check_ins_note_length does', () => {
     const match =
       /check_ins_note_length check \(note is null or char_length\(note\) <= (\d+)\)/.exec(
-        flat(activity),
+        flat(schema),
       );
-    expect(match, 'check_ins_note_length not found in the activity migration').not.toBeNull();
+    expect(match, 'check_ins_note_length not found in any migration').not.toBeNull();
     expect(CHECK_IN_NOTE_MAX_LENGTH).toBe(Number(match![1]));
   });
 
   it('caps the active window where check_ins_max_window does', () => {
     const match =
       /check_ins_max_window check \(expires_at <= started_at \+ interval '(\d+) hours'\)/.exec(
-        flat(activity),
+        flat(schema),
       );
-    expect(match, 'check_ins_max_window not found in the activity migration').not.toBeNull();
+    expect(match, 'check_ins_max_window not found in any migration').not.toBeNull();
     expect(CHECK_IN_DURATION.maxMinutes).toBe(Number(match![1]) * 60);
   });
 
@@ -77,8 +78,8 @@ describe('check-in limits mirror the database', () => {
 
 describe('run limits mirror the database', () => {
   it('expires a series where run_series_max_12_weeks does', () => {
-    const match = /valid_until <= starts_on \+ interval '(\d+) weeks'/.exec(flat(runs));
-    expect(match, 'run_series_max_12_weeks not found in the runs migration').not.toBeNull();
+    const match = /valid_until <= starts_on \+ interval '(\d+) weeks'/.exec(flat(schema));
+    expect(match, 'run_series_max_12_weeks not found in any migration').not.toBeNull();
     expect(RUN_SERIES.maxWeeksValid).toBe(Number(match![1]));
   });
 
@@ -92,11 +93,8 @@ describe('duplicate distances mirror the database', () => {
     // Scoped to this function on purpose: nearby_venues declares p_radius_m too,
     // defaulting to 8 km, and matching that one would silently assert nothing.
     const signature =
-      /create or replace function public\.find_duplicate_candidates\(([^)]*)\)/.exec(discovery);
-    expect(
-      signature,
-      'find_duplicate_candidates not found in the discovery migration',
-    ).not.toBeNull();
+      /create or replace function public\.find_duplicate_candidates\(([^)]*)\)/.exec(schema);
+    expect(signature, 'find_duplicate_candidates not found in any migration').not.toBeNull();
 
     const match = /p_radius_m\s+double precision default (\d+)/.exec(signature![1]);
     expect(match, 'find_duplicate_candidates has no p_radius_m default').not.toBeNull();

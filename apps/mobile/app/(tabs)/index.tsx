@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -54,13 +54,32 @@ export default function LiveScreen() {
   const [view, setView] = useState<'map' | 'list'>('map');
   const [center, setCenter] = useState<{ latitude: number; longitude: number }>(DEFAULT_CENTER);
 
+  const [recenterRequest, setRecenterRequest] = useState(0);
+
   const { state: locationState, request: requestLocation } = useDeviceLocation();
+  const didRequestLocation = useRef(false);
+  const handleLocate = useCallback(async () => {
+    const coords = await requestLocation();
+    if (coords) {
+      setCenter({ latitude: coords.latitude, longitude: coords.longitude });
+      setRecenterRequest((current) => current + 1);
+    }
+  }, [requestLocation]);
+
+  useEffect(() => {
+    if (didRequestLocation.current) return;
+    didRequestLocation.current = true;
+    void handleLocate();
+  }, [handleLocate]);
+
+  const locating = locationState.status === 'idle' || locationState.status === 'requesting';
   const sports = useSports();
   const sessionPins = usePublicSessionPins(selectedSportIds);
   const venues = useNearbyVenues({
     latitude: center.latitude,
     longitude: center.longitude,
     sportIds: selectedSportIds,
+    enabled: !locating,
   });
 
   const activeSports = useMemo(
@@ -99,11 +118,6 @@ export default function LiveScreen() {
         ? selectedSportIds.filter((value) => value !== id)
         : [...selectedSportIds, id],
     });
-  }
-
-  async function handleLocate() {
-    const coords = await requestLocation();
-    if (coords) setCenter({ latitude: coords.latitude, longitude: coords.longitude });
   }
 
   const listContent = (
@@ -153,6 +167,7 @@ export default function LiveScreen() {
         <View style={StyleSheet.absoluteFill}>
           <VenueMap
             region={region}
+            recenterRequest={recenterRequest}
             markers={[
               ...markers,
               ...(sessionPins.data ?? []).flatMap((pin) =>
@@ -207,7 +222,11 @@ export default function LiveScreen() {
               <View style={styles.regionRow}>
                 <MaterialCommunityIcons name="map-marker" size={12} color={colors.textMuted} />
                 <AppText variant="caption" tone="muted">
-                  Charlottetown
+                  {locating
+                    ? 'Finding your location…'
+                    : locationState.status === 'granted'
+                      ? 'Near you'
+                      : 'Charlottetown · default area'}
                 </AppText>
               </View>
             </View>
@@ -264,7 +283,9 @@ export default function LiveScreen() {
           <View style={[styles.controlDivider, { backgroundColor: colors.glassBorder }]} />
 
           <PressableSurface
-            onPress={handleLocate}
+            onPress={() => {
+              if (!locating) void handleLocate();
+            }}
             accessibilityLabel="Centre the map on my location"
             accessibilityHint="Asks for location permission the first time"
           >
@@ -292,8 +313,8 @@ export default function LiveScreen() {
           <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
             <AppText variant="caption">
               {locationState.status === 'denied'
-                ? 'Location is off, so distances are measured from the city centre. Everything else still works.'
-                : 'Location is unavailable on this device right now.'}
+                ? 'Location is off. Showing Charlottetown as a default area; distances are from its centre.'
+                : 'Could not find your location. Showing Charlottetown as a default area. Tap the location button to retry.'}
             </AppText>
           </AdaptiveGlassSurface>
         </View>
