@@ -15,6 +15,12 @@ apps/mobile/expo-env.d.ts
 # Lockfiles
 package-lock.json
 
+# Python tooling. The importer is deferred (docs/architecture.md) but its
+# directory and virtualenv are still on disk, and prettier would otherwise try
+# to format 53 MB of vendored packages.
+tools/venue-importer/
+**/.venv/
+
 # SQL: prettier has no Postgres parser and would mangle these.
 supabase/migrations/
 supabase/tests/
