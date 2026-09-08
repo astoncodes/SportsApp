@@ -12,12 +12,8 @@ packages/database-types/src/database.types.ts
 # here or `format:check` fails on a file nobody owns.
 apps/mobile/expo-env.d.ts
 
-# Python is formatted by ruff, not prettier.
-tools/venue-importer/
-
 # Lockfiles
 package-lock.json
-uv.lock
 
 # SQL: prettier has no Postgres parser and would mangle these.
 supabase/migrations/

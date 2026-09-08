@@ -5,6 +5,7 @@ import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import VenueMap from '../../src/components/map/venue-map';
+import { isAwayFromLocation } from '../../src/components/map/location-distance';
 import type { MapRegion } from '../../src/components/map/types';
 import { EmptyState, Skeleton } from '../../src/components/ui/activity';
 import { AdaptiveGlassSurface } from '../../src/components/ui/glass-surface';
@@ -54,14 +55,18 @@ export default function LiveScreen() {
   const [view, setView] = useState<'map' | 'list'>('map');
   const [center, setCenter] = useState<{ latitude: number; longitude: number }>(DEFAULT_CENTER);
 
+  const [visibleCenter, setVisibleCenter] = useState<{ latitude: number; longitude: number }>(
+    DEFAULT_CENTER,
+  );
   const [recenterRequest, setRecenterRequest] = useState(0);
 
-  const { state: locationState, request: requestLocation } = useDeviceLocation();
+  const { state: locationState, request: requestLocation } = useDeviceLocation({ live: true });
   const didRequestLocation = useRef(false);
   const handleLocate = useCallback(async () => {
     const coords = await requestLocation();
     if (coords) {
       setCenter({ latitude: coords.latitude, longitude: coords.longitude });
+      setVisibleCenter({ latitude: coords.latitude, longitude: coords.longitude });
       setRecenterRequest((current) => current + 1);
     }
   }, [requestLocation]);
@@ -73,11 +78,15 @@ export default function LiveScreen() {
   }, [handleLocate]);
 
   const locating = locationState.status === 'idle' || locationState.status === 'requesting';
+  const showRecenter =
+    view === 'map' &&
+    locationState.status === 'granted' &&
+    isAwayFromLocation(visibleCenter, locationState.coords);
   const sports = useSports();
   const sessionPins = usePublicSessionPins(selectedSportIds);
   const venues = useNearbyVenues({
-    latitude: center.latitude,
-    longitude: center.longitude,
+    latitude: visibleCenter.latitude,
+    longitude: visibleCenter.longitude,
     sportIds: selectedSportIds,
     enabled: !locating,
   });
@@ -168,6 +177,7 @@ export default function LiveScreen() {
           <VenueMap
             region={region}
             recenterRequest={recenterRequest}
+            onRegionChange={setVisibleCenter}
             markers={[
               ...markers,
               ...(sessionPins.data ?? []).flatMap((pin) =>
@@ -231,7 +241,6 @@ export default function LiveScreen() {
               </View>
             </View>
 
-            <Button label="Session" icon="plus" size="sm" onPress={() => router.push('/run/new')} />
             <IconButton
               icon="map-marker-plus-outline"
               label="Add a venue"
@@ -239,6 +248,14 @@ export default function LiveScreen() {
             />
           </View>
 
+          <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm }}>
+            <Button
+              label="Create session/run"
+              icon="plus"
+              size="sm"
+              onPress={() => router.push('/run/new')}
+            />
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -265,7 +282,7 @@ export default function LiveScreen() {
       </View>
 
       {/* --- Right-hand floating controls --- */}
-      <View style={[styles.sideControls, { top: insets.top + 132 }]} pointerEvents="box-none">
+      <View style={[styles.sideControls, { top: insets.top + 178 }]} pointerEvents="box-none">
         <AdaptiveGlassSurface borderRadius={radius.pill} style={styles.controlStack}>
           <PressableSurface
             onPress={() => setView(view === 'map' ? 'list' : 'map')}
@@ -280,42 +297,44 @@ export default function LiveScreen() {
             </View>
           </PressableSurface>
 
-          <View style={[styles.controlDivider, { backgroundColor: colors.glassBorder }]} />
-
-          <PressableSurface
-            onPress={() => {
-              if (!locating) void handleLocate();
-            }}
-            accessibilityLabel="Centre the map on my location"
-            accessibilityHint="Asks for location permission the first time"
-          >
-            <View style={styles.controlButton}>
-              <MaterialCommunityIcons
-                name={
-                  locationState.status === 'granted'
-                    ? 'crosshairs-gps'
-                    : locationState.status === 'requesting'
-                      ? 'crosshairs'
-                      : 'crosshairs-question'
-                }
-                size={20}
-                color={locationState.status === 'granted' ? colors.info : colors.text}
-              />
-            </View>
-          </PressableSurface>
+          {showRecenter && (
+            <>
+              <View style={[styles.controlDivider, { backgroundColor: colors.glassBorder }]} />
+              <PressableSurface
+                onPress={() => {
+                  if (locationState.status !== 'granted') return;
+                  setCenter(locationState.coords);
+                  setVisibleCenter(locationState.coords);
+                  setRecenterRequest((current) => current + 1);
+                }}
+                accessibilityLabel="Centre the map on my location"
+              >
+                <View style={styles.controlButton}>
+                  <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.info} />
+                </View>
+              </PressableSurface>
+            </>
+          )}
         </AdaptiveGlassSurface>
       </View>
 
       {/* Permission denial is explained where it happened, and never blocks
           browsing — the map keeps working, it just cannot centre on you. */}
       {(locationState.status === 'denied' || locationState.status === 'unavailable') && (
-        <View style={[styles.notice, { top: insets.top + 132 }]} pointerEvents="box-none">
+        <View style={[styles.notice, { top: insets.top + 178 }]} pointerEvents="box-none">
           <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
             <AppText variant="caption">
               {locationState.status === 'denied'
                 ? 'Location is off. Showing Charlottetown as a default area; distances are from its centre.'
-                : 'Could not find your location. Showing Charlottetown as a default area. Tap the location button to retry.'}
+                : 'Could not find your location. Showing Charlottetown as a default area. Try enabling location below.'}
             </AppText>
+            <Button
+              label="Enable location"
+              size="sm"
+              onPress={() => {
+                void handleLocate();
+              }}
+            />
           </AdaptiveGlassSurface>
         </View>
       )}
@@ -338,7 +357,7 @@ export default function LiveScreen() {
           {listContent}
         </ResultsSheet>
       ) : (
-        <View style={{ flex: 1, paddingTop: insets.top + 130 }}>{listContent}</View>
+        <View style={{ flex: 1, paddingTop: insets.top + 176 }}>{listContent}</View>
       )}
     </View>
   );

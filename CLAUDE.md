@@ -50,7 +50,7 @@ first thing real data does is contradict it.
 - **Node config files** (`app.config.ts`, `metro.config.js`) are typechecked by
   `tsconfig.node.json`, separately from app code, so Node globals stay out of the React Native
   type space.
-- Python is formatted and linted by ruff; TypeScript by prettier. `npm run check` runs both.
+- Prettier formats the project; ESLint checks app code. `npm run check` runs formatting, lint, types, and unit tests using Node and npm.
 
 ## Before you say it works
 

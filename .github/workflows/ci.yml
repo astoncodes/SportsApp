@@ -1,5 +1,5 @@
 name: App checks
-# Uses Node and Python directly. No containers or local Supabase service.
+# Uses Node directly. No containers or local Supabase service.
 on:
   push:
     branches: [main]
@@ -21,11 +21,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - run: uv sync --locked
-        working-directory: tools/venue-importer
       # Build-only placeholders. PR checks never contact a backend or need secrets.
       - name: Configure offline builds
         run: |

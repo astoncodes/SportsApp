@@ -40,7 +40,6 @@ Press `Ctrl+C` in the corresponding terminal to stop either app.
 - Node.js **24.8.0**, pinned in `.nvmrc`. With nvm, use `nvm install` and `nvm use`.
 - npm, included with Node.js.
 - Access to the hosted Supabase project and its project URL/publishable key.
-- Optional: [uv](https://docs.astral.sh/uv/) for Python importer tools and the full test suite.
 
 Run `npm ci` from the repository root to install all JavaScript workspaces.
 You do not need the Supabase CLI login or a database password just to run the apps.
@@ -66,11 +65,11 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
 
-# Geoapify: location search and light/dark web map tiles
+# Geoapify: location search
 EXPO_PUBLIC_GEOAPIFY_API_KEY=YOUR_GEOAPIFY_KEY
 
-# Needed for your own Android builds; not required for the web preview
-GOOGLE_MAPS_ANDROID_API_KEY=YOUR_RESTRICTED_ANDROID_MAPS_KEY
+# Mapbox public token: native and web maps
+EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN=YOUR_MAPBOX_PUBLIC_TOKEN
 ```
 
 The variable names still say `ANON_KEY`, but accept a Supabase publishable key.
@@ -79,16 +78,15 @@ Keep these names exactly as shown. Expo and Vite both read the repository-root
 
 The app connects through Supabase's HTTPS APIs. **`SUPABASE_DB_URL` is not needed
 for app startup.** That privileged Postgres connection is only for maintenance
-scripts and the importer. Never put a database password or service-role key in
+scripts. Never put a database password or service-role key in
 `EXPO_PUBLIC_*`, `VITE_*`, or application code. `.env` is ignored by Git.
 
-Geoapify is used for search and web tiles. Native iOS uses Apple Maps; native
-Android uses Google Maps. Keep the optional CARTO setting blank for this setup.
-The Android key must be restricted to Maps SDK for Android and, before distribution,
-the app package `com.dropin.app` with the correct signing SHA-1.
+Geoapify powers location search. Mapbox powers native and web maps, with green
+street layers and a blue live-location dot. Set a public `pk.*` Mapbox token;
+never place a secret `sk.*` token in client configuration. Without a token,
+the map displays an unavailable message and the venue list remains usable.
 
-After changing `.env`, stop and restart the relevant development server, then
-reload the browser. Android map-key changes require a new native build.
+After changing `.env`, restart the development server and reload the app.
 
 ### 3. Confirm the database is prepared
 
@@ -156,20 +154,21 @@ upload also checks media storage. No additional backend process needs starting.
 
 ## Testing on a phone
 
-```bash
-npm run mobile
-```
+Mapbox requires a native build; Expo Go cannot load `@rnmapbox/maps`.
+From `apps/mobile`, build and launch with `npx expo run:ios` or
+`npx expo run:android` (Xcode or Android Studio is required). Rebuild after changing
+native plugins. See the [Mapbox Expo installation guide](https://github.com/rnmapbox/maps/blob/main/plugin/install.md).
 
-Scan the Expo QR code with Expo Go, with your phone and computer on the same
-network. Keep the Supabase URL as the hosted HTTPS URL; do not change it to your
-computer's LAN address. The LAN address is only for reaching the Expo development
-server.
+Keep the Supabase URL as the hosted HTTPS URL. A native build uses the configured
+`dropin` auth callback scheme. Physical-device verification remains part of the
+[release checklist](docs/release-checklist.md).
 
-Expo Go's auth callback differs from a native app build: allow the exact running
-Expo callback URL in Supabase if testing sign-in there. A native build uses the
-configured `dropin` scheme. Google maps in your own Android build need the restricted
-key and matching signing fingerprint. Physical-device verification remains part
-of the [release checklist](docs/release-checklist.md).
+On the Live screen, **Create session/run** opens the existing session form.
+Location updates run in the foreground after permission is granted. The recenter
+button appears when the map center is more than 50 metres from the latest location;
+tapping it centers the map and hides the button. The distance threshold ignores
+small GPS fluctuations. Verify panning, recentering, permission denial, draggable
+meeting pins, and theme switching on a device with a configured Mapbox token.
 
 ## Optional admin and maintenance tools
 
@@ -184,24 +183,16 @@ npm run db:admin -- admin@example.com
 This grants real privileges in the selected database. It is not required for
 normal players or for starting the mobile app.
 
-To install the importer dependencies and inspect its commands:
-
-```bash
-cd tools/venue-importer
-uv sync --locked
-uv run venue-importer --help
-```
-
 For schema type generation, `SUPABASE_PROJECT_REF` selects a hosted project or is
 inferred from `EXPO_PUBLIC_SUPABASE_URL`. The script uses `SUPABASE_ACCESS_TOKEN`
 or the saved CLI token. Keep tokens server-side; they are not app configuration.
 
 ## Checks and CI
 
-Run these from the repository root. The full check needs uv as well as Node:
+Run these from the repository root. The full check uses Node and npm:
 
 ```bash
-npm run check          # formatting, lint, types, JS and Python unit tests
+npm run check          # formatting, lint, types, JavaScript/TypeScript unit tests
 npm run test:maps      # Geoapify adapter checks; no live API requests
 npm run check:bundles  # builds and server-credential scanning
 npm run db:types       # read hosted schema and regenerate TypeScript types
@@ -233,7 +224,7 @@ npm run test:supabase -- --project-ref=YOUR_PROJECT_REF
 | Login returns to the wrong page            | Check the exact host, port and callback in Supabase's redirect allowlist.                                     |
 | Empty map or no sessions                   | An empty database is valid. Create a pin session; inspect any displayed network errors separately.            |
 | Search reports authentication/quota errors | Check the Geoapify key, its restrictions and project usage.                                                   |
-| Native Android map is blank                | Check Maps SDK for Android, billing, API key, package/SHA-1 restrictions and rebuild.                         |
+| Mapbox map is blank                        | Check the public Mapbox token, network access and native build; Expo Go is unsupported.                       |
 | Port is already in use                     | Use the existing server or stop it before restarting; alternate ports also need matching auth callbacks.      |
 | Missing tables/functions on a new project  | Apply committed migrations to the intended hosted project, then regenerate types.                             |
 
@@ -243,7 +234,6 @@ npm run test:supabase -- --project-ref=YOUR_PROJECT_REF
 - `apps/admin`: Vite admin application.
 - `packages/database-types`: generated Supabase types.
 - `packages/shared`: shared constants mirroring database rules.
-- `tools/venue-importer`: Python importer tooling and tests.
 - `supabase/migrations`: schema source of truth.
 - `supabase/tests`: pgTAP checks and isolated-project fixtures.
 - `docs`: architecture, product rules, decisions and remaining release work.

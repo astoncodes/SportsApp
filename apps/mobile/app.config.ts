@@ -103,10 +103,7 @@ const config: ExpoConfig = {
         microphonePermission: false,
       },
     ],
-    [
-      'react-native-maps',
-      { androidGoogleMapsApiKey: read('GOOGLE_MAPS_ANDROID_API_KEY') || undefined },
-    ],
+    '@rnmapbox/maps',
     [
       'expo-location',
       {
@@ -142,7 +139,7 @@ const config: ExpoConfig = {
     supabaseUrl: read('EXPO_PUBLIC_SUPABASE_URL'),
     supabaseAnonKey: read('EXPO_PUBLIC_SUPABASE_ANON_KEY'),
     geoapifyApiKey: read('EXPO_PUBLIC_GEOAPIFY_API_KEY'),
-    cartoBasemapKey: read('EXPO_PUBLIC_CARTO_BASEMAP_KEY'),
+    mapboxAccessToken: read('EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN'),
   },
 };
 

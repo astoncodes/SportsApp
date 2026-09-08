@@ -21,7 +21,7 @@ The app is still in testing. This file tracks unfinished work only.
 - [ ] Add reporting, user blocking and admin content removal.
 - [ ] Implement account deletion and media retention/deletion behavior.
 - [ ] Publish privacy policy, support contact, terms and community guidelines.
-- [ ] Finish the importer workflow. The venue review admin is implemented; see [admin-app.md](admin-app.md).
+- [ ] Verify the venue submission and admin review workflow; see [admin-app.md](admin-app.md). Automated OSM importing is deferred.
 - [ ] Finish or hide live check-in/arrival placeholders for the first release.
 
 Spontaneous sessions publish immediately. Review canonical venues and handle

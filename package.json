@@ -2,7 +2,7 @@
   "name": "drop-in",
   "version": "0.1.0",
   "private": true,
-  "description": "Drop In \u2014 pickup sports check-in app \u2014 find where games are happening now, check in while you're there.",
+  "description": "Drop In — pickup sports check-in app — find where games are happening now, check in while you're there.",
   "engines": {
     "node": ">=24.0.0"
   },
@@ -12,15 +12,12 @@
   ],
   "scripts": {
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
-    "format": "prettier --write . && npm run format:python",
-    "format:check": "prettier --check . && npm run format:python -- --check",
-    "format:python": "cd tools/venue-importer && uv run ruff format",
-    "lint": "npm run lint --workspaces --if-present && npm run lint:python",
-    "lint:python": "cd tools/venue-importer && uv run ruff check .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test:js && npm run test:python",
+    "test": "npm run test:js",
     "test:js": "npm run test --workspaces --if-present",
-    "test:python": "cd tools/venue-importer && uv run pytest",
     "db:test": "node scripts/test-database.mjs",
     "db:types": "node scripts/generate-database-types.mjs",
     "db:admin": "node scripts/grant-admin.mjs",
@@ -28,7 +25,6 @@
     "check:bundles": "npm run build && node scripts/check-client-bundles.mjs",
     "mobile": "npm run start --workspace apps/mobile",
     "admin": "npm run dev --workspace apps/admin",
-    "importer": "cd tools/venue-importer && uv run venue-importer",
     "test:supabase": "node scripts/tests/session-social.mjs",
     "test:maps": "node scripts/tests/geoapify.mjs"
   },

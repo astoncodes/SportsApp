@@ -466,6 +466,7 @@ export function useSessionControls(sessionId: string) {
       [
         'session-overview',
         'joined-sessions',
+        'run-attendance',
         'upcoming-runs',
         'public-session-pins',
         'community-feed',

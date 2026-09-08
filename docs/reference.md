@@ -41,7 +41,7 @@ These came from the two source documents and should be treated as locked unless 
 | Mobile               | React Native, Expo, TypeScript                                                                  |
 | Backend              | Supabase: Postgres, PostGIS, Auth, Realtime                                                     |
 | Venue source         | OpenStreetMap through Overpass, plus moderated user submissions                                 |
-| Importer             | Python CLI using a small dependency set                                                         |
+| Importer             | Deferred; unfinished Python tooling removed                                                     |
 | Admin/review tooling | TypeScript                                                                                      |
 | Database workflow    | Local Supabase for schema work; hosted development project for collaborative review             |
 | Import model         | Import into staging, review, then publish; never write raw imports directly into public venues  |
@@ -221,9 +221,7 @@ flowchart TD
     Mobile["Expo mobile app"] -->|reads and RPCs| DB["Supabase Postgres + PostGIS"]
     Mobile -->|live events| RT["Supabase Realtime"]
     RT --> DB
-    Importer["Python venue importer"] -->|raw OSM records| DB
     Admin["TypeScript review app"] -->|review and merge RPCs| DB
-    Overpass["Overpass API"] --> Importer
 ```
 
 Principles:
@@ -268,11 +266,6 @@ drop-in/
 │   ├── database-types/         # Generated from Supabase; never hand-edited
 │   ├── shared/                 # Small cross-app types/constants only
 │   └── ui/                     # Optional; create only after real reuse exists
-├── tools/
-│   └── venue-importer/
-│       ├── pyproject.toml
-│       ├── src/venue_importer/
-│       └── tests/
 ├── supabase/
 │   ├── migrations/
 │   ├── seed.sql
@@ -626,7 +619,7 @@ Enable RLS on every table exposed through the API. RLS and grants are both part 
 | Run series                    | Active series public             | Organizer through RPC             | Restricted             |
 | Admin/audit tables            | No                               | No                                | Admin only             |
 
-Never place the database password or service-role key in `EXPO_PUBLIC_*`, browser code, committed files, or test snapshots. The importer uses a server-side development database credential from an ignored environment file.
+Never place the database password or service-role key in `EXPO_PUBLIC_*`, browser code, committed files, or test snapshots. Admin maintenance uses a server-side database credential from an ignored environment file.
 
 Database tests cover RLS from anonymous, authenticated-owner, authenticated-other-user,
 and admin perspectives. Use the isolated hosted test project and transactional
@@ -679,13 +672,13 @@ A small Leaflet-based review map may use standard OSM tiles only if it follows t
 
 ## 13. Import and review lifecycle
 
-### Importer command contract
+### Automated import tooling (deferred)
 
-```text
-venue-importer import-region --region charlottetown [--dry-run]
-venue-importer analyze-region --region charlottetown
-venue-importer import-region --region <second-region> --unpublished
-```
+The unfinished Python importer and its local dependencies have been removed.
+There are no importer commands or Python requirements in the current project.
+The database staging schema remains; the behavior below is a specification for
+future ingestion tooling, not an implemented workflow. Current venue submissions
+use the app and admin review.
 
 ### Import behavior
 
@@ -700,7 +693,7 @@ venue-importer import-region --region <second-region> --unpublished
 9. Run duplicate-candidate detection and cache matches.
 10. Complete the batch with metrics. On failure, record the error and leave already-written source rows safe to reprocess.
 
-The importer is idempotent. A dry run performs fetching, normalization, and reporting but no writes.
+A future importer must be idempotent. A dry run performs fetching, normalization, and reporting but no writes.
 
 ### Admin review workflow
 
@@ -717,7 +710,7 @@ The review queue supports:
 
 ### Second-region smoke test
 
-Run the same importer against one denser region, but keep that region unpublished. The test passes when:
+Once implemented, run the importer against one denser region, but keep that region unpublished. The test passes when:
 
 - no region-specific constants appear in importer code;
 - batching and timeout behavior remain safe;
@@ -775,10 +768,9 @@ Deliver:
 - monorepo folders and workspace scripts;
 - Expo mobile shell and route groups;
 - Vite admin shell;
-- Python package shell;
 - local Supabase config;
 - first migrations, seed data, generated TypeScript types;
-- CI for formatting, type checking, Python tests, and database tests.
+- Node-based CI for formatting, lint, type checking, unit tests, and builds; separate hosted database checks.
 
 Exit criteria:
 
@@ -790,7 +782,7 @@ Deliver:
 
 - regions, sports, aliases, batches, source records, candidates, venues, source links, and audit tables;
 - PostGIS indexes and duplicate-candidate function;
-- Python import and analysis commands;
+- automated import and analysis tooling (deferred);
 - admin review queue and transactional approval/rejection/merge RPCs;
 - Charlottetown import;
 - unpublished second-region smoke test.

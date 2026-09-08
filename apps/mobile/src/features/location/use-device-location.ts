@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
 export type LocationState =
   | { status: 'idle' }
@@ -16,8 +17,55 @@ export type LocationState =
  * "I'm here", which genuinely cannot be verified any other way. An app that
  * blocks its own map behind a permission prompt teaches people to deny it.
  */
-export function useDeviceLocation() {
+export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
   const [state, setState] = useState<LocationState>({ status: 'idle' });
+
+  const granted = state.status === 'granted';
+  useEffect(() => {
+    if (!live || !granted) return;
+    let disposed = false;
+    let generation = 0;
+    let subscription: Location.LocationSubscription | undefined;
+    const stop = () => {
+      generation += 1;
+      subscription?.remove();
+      subscription = undefined;
+    };
+    const start = async () => {
+      stop();
+      const current = generation;
+      try {
+        const watcher = await Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 3000 },
+          ({ coords }) => {
+            if (!disposed && current === generation)
+              setState({
+                status: 'granted',
+                coords: {
+                  latitude: coords.latitude,
+                  longitude: coords.longitude,
+                  accuracyM: coords.accuracy ?? null,
+                },
+              });
+          },
+        );
+        if (disposed || current !== generation) watcher.remove();
+        else subscription = watcher;
+      } catch {
+        // Retain the last fix if live updates are temporarily unavailable.
+      }
+    };
+    if (AppState.currentState === 'active' || AppState.currentState == null) void start();
+    const listener = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void start();
+      else stop();
+    });
+    return () => {
+      disposed = true;
+      stop();
+      listener.remove();
+    };
+  }, [live, granted]);
 
   const request = useCallback(async () => {
     setState({ status: 'requesting' });

@@ -16,9 +16,7 @@ flowchart TD
     Mobile["Expo mobile app"] -->|reads and RPCs| DB["Supabase Postgres + PostGIS"]
     Mobile -->|live events| RT["Supabase Realtime"]
     RT --> DB
-    Importer["Python venue importer"] -->|raw OSM records| DB
     Admin["TypeScript review app"] -->|review and merge RPCs| DB
-    Overpass["Overpass API"] --> Importer
 ```
 
 **Postgres is the source of truth for business rules.** Mobile and admin do not duplicate merge,
@@ -61,6 +59,11 @@ makes escalation auditable.
 ---
 
 ## Venue data lifecycle
+
+Automated OSM importing is deferred; the unfinished Python tool has been removed.
+The staging schema remains for existing data and future ingestion. The diagram
+below describes that future import path; current venue submissions use the app
+and admin review workflow.
 
 ```
 Overpass API
@@ -156,7 +159,7 @@ _Current development and verification instructions are in the README._
 
 **Phase 1 — venue data foundation.**
 Batches, source records, candidates, venues, source links, audit. PostGIS indexes and the
-duplicate-candidate function. Python import and analyze commands. Admin review queue with
+duplicate-candidate function. Automated import tooling is deferred. Admin review queue with
 transactional approve/reject/merge RPCs. Charlottetown import; unpublished second-region smoke test.
 _Exit: raw OSM becomes a clean reviewed Charlottetown venue list without hand-editing tables._
 
@@ -181,9 +184,9 @@ _Exit: an untrusted submission never becomes public without an authorized review
 
 ---
 
-## Second-region smoke test
+## Second-region smoke test (deferred)
 
-Run the importer against one denser region, kept unpublished. It passes when:
+When import tooling is implemented, run it against one denser region, kept unpublished. It passes when:
 
 - no region-specific constants appear in importer code
 - batching and timeout behaviour stay safe on a larger response

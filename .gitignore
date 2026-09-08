@@ -10,15 +10,6 @@ build/
 web-build/
 *.tsbuildinfo
 
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-.pytest_cache/
-.ruff_cache/
-*.egg-info/
-
 # Environment — never commit real credentials.
 # .env.example is the committed template and MUST stay tracked.
 .env

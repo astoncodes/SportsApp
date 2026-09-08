@@ -1,24 +1,23 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import Mapbox, {
+  Camera,
+  LineLayer,
+  MapView,
+  PointAnnotation,
+  UserLocation,
+  VectorSource,
+} from '@rnmapbox/maps';
 import { useEffect, useRef } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useFonts } from 'expo-font';
 
+import { env } from '../../lib/env';
 import { palettes } from '../../theme/tokens';
 import { AppText, sportIcon } from '../ui/primitives';
-import { useFonts } from 'expo-font';
-import { CARTO_ENABLED, TILE_ATTRIBUTION, TILE_SOURCES } from './types';
-import type { VenueMapProps } from './types';
+import type { MapRegion, VenueMapProps } from './types';
 
-/**
- * Native map adapter (iOS / Android).
- *
- * Metro picks `venue-map.web.tsx` for web instead. Both satisfy VenueMapProps,
- * so feature screens never learn which one they got.
- *
- * NOTE: this path has not been exercised on a device in this environment —
- * only Command Line Tools are installed, so there is no iOS simulator. The web
- * adapter is the verified one; treat this as reviewed but unrun.
- */
+if (env.mapboxAccessToken) Mapbox.setAccessToken(env.mapboxAccessToken);
+
 export default function VenueMap({
   region,
   recenterRequest,
@@ -33,56 +32,111 @@ export default function VenueMap({
 }: VenueMapProps) {
   const colors = palettes[colorScheme];
   const [fontsLoaded] = useFonts(MaterialCommunityIcons.font);
-  const mapRef = useRef<MapView | null>(null);
+  const camera = useRef<Camera>(null);
+  const lastReported = useRef<MapRegion | null>(null);
+  const lastRequest = useRef(recenterRequest);
   const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
-
   useEffect(() => {
-    mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta, longitudeDelta }, 200);
+    const reported = lastReported.current;
+    const requested = lastRequest.current !== recenterRequest;
+    lastRequest.current = recenterRequest;
+    // Picker screens echo viewport changes back as props. Do not animate that echo.
+    if (
+      !requested &&
+      reported &&
+      reported.latitude === latitude &&
+      reported.longitude === longitude &&
+      reported.latitudeDelta === latitudeDelta &&
+      reported.longitudeDelta === longitudeDelta
+    )
+      return;
+    camera.current?.setCamera({
+      centerCoordinate: [longitude, latitude],
+      zoomLevel: Math.log2(360 / Math.max(longitudeDelta, 0.0001)),
+      animationDuration: 250,
+    });
   }, [latitude, longitude, latitudeDelta, longitudeDelta, recenterRequest]);
+
+  if (!env.mapboxAccessToken)
+    return (
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+          style,
+        ]}
+      >
+        <AppText>Map unavailable. You can still browse the venue list.</AppText>
+      </View>
+    );
 
   return (
     <View style={[StyleSheet.absoluteFill, style]}>
       <MapView
-        ref={mapRef}
         style={StyleSheet.absoluteFill}
-        initialRegion={region}
-        onPress={(event) => onPressCoordinate?.(event.nativeEvent.coordinate)}
-        onRegionChangeComplete={onRegionChange}
-        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-        userInterfaceStyle={colorScheme}
-        customMapStyle={colorScheme === 'light' ? illustratedMapStyle : undefined}
-        showsUserLocation={false}
-        showsPointsOfInterests={false}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        toolbarEnabled={false}
+        styleURL={colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Light}
+        compassEnabled={false}
+        scaleBarEnabled={false}
+        onPress={(event) => {
+          if (event.geometry.type === 'Point')
+            onPressCoordinate?.({
+              latitude: event.geometry.coordinates[1],
+              longitude: event.geometry.coordinates[0],
+            });
+        }}
+        onMapIdle={(state) => {
+          const next = {
+            latitude: state.properties.center[1],
+            longitude: state.properties.center[0],
+            latitudeDelta: Math.abs(state.properties.bounds.ne[1] - state.properties.bounds.sw[1]),
+            longitudeDelta: Math.abs(state.properties.bounds.ne[0] - state.properties.bounds.sw[0]),
+          };
+          lastReported.current = next;
+          onRegionChange?.(next);
+        }}
         accessibilityLabel="Map of nearby venues. The same venues are listed below."
       >
-        {/* Use the platform map until a CARTO key is configured. */}
-        {CARTO_ENABLED && (
-          <UrlTile
-            urlTemplate={TILE_SOURCES[colorScheme].replace('{r}', '')}
-            maximumZ={19}
-            minimumZ={9}
-            shouldReplaceMapContent
+        <Camera
+          ref={camera}
+          defaultSettings={{
+            centerCoordinate: [longitude, latitude],
+            zoomLevel: Math.log2(360 / Math.max(longitudeDelta, 0.0001)),
+          }}
+        />
+        <VectorSource id="green-streets" url="mapbox://mapbox.mapbox-streets-v8">
+          <LineLayer
+            id="green-street-lines"
+            sourceLayerID="road"
+            belowLayerID="road-label"
+            minZoomLevel={10}
+            style={{
+              lineColor: '#16A34A',
+              lineOpacity: 0.7,
+              lineCap: 'round',
+              lineJoin: 'round',
+              lineWidth: ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 2, 18, 5],
+            }}
           />
-        )}
-
+        </VectorSource>
         {markers.map((marker) => (
-          <Marker
-            key={`${marker.id}/${marker.kind}/${marker.sportSlug}/${marker.count}/${marker.isLive}/${marker.isPending}/${marker.selected}/${colorScheme}/${fontsLoaded}`}
+          <PointAnnotation
+            key={`${marker.id}/${marker.selected}/${marker.count}/${colorScheme}/${fontsLoaded}`}
+            id={marker.id}
+            coordinate={[marker.longitude, marker.latitude]}
             anchor={marker.kind === 'session' ? { x: 0.5, y: 49 / 56 } : { x: 0.5, y: 24 / 44 }}
-            zIndex={marker.selected ? 1000 : marker.kind === 'session' ? 500 : 0}
-            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
-            onPress={() => onSelectMarker?.(marker.id)}
+            onSelected={() => onSelectMarker?.(marker.id)}
             draggable={marker.draggable}
-            onDragEnd={(event) => onMarkerDragEnd?.(marker.id, event.nativeEvent.coordinate)}
-            title={marker.label}
-            tracksViewChanges={false}
+            onDragEnd={(event) =>
+              onMarkerDragEnd?.(marker.id, {
+                latitude: event.geometry.coordinates[1],
+                longitude: event.geometry.coordinates[0],
+              })
+            }
           >
             <View
               style={{ width: 48, height: marker.kind === 'session' ? 56 : 44 }}
               collapsable={false}
+              accessibilityLabel={marker.label}
             >
               <View
                 style={[
@@ -113,32 +167,10 @@ export default function VenueMap({
                 </View>
               )}
             </View>
-          </Marker>
+          </PointAnnotation>
         ))}
-        {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            anchor={{ x: 0.5, y: 0.5 }}
-            zIndex={2000}
-            title="Your location"
-            tracksViewChanges={false}
-            tappable={false}
-          >
-            <View style={styles.userHalo} collapsable={false}>
-              <View style={styles.userDot} />
-            </View>
-          </Marker>
-        )}
+        {userLocation && <UserLocation visible minDisplacement={5} />}
       </MapView>
-
-      {/* Attribution is a condition of using these tiles, not a nicety. */}
-      {CARTO_ENABLED && (
-        <View style={[styles.attribution, { backgroundColor: colors.glassFill }]}>
-          <AppText variant="micro" tone="muted">
-            {TILE_ATTRIBUTION}
-          </AppText>
-        </View>
-      )}
     </View>
   );
 }
@@ -181,47 +213,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  userHalo: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#16A34A26',
-    borderWidth: 1,
-    borderColor: '#16A34A50',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#16A34A',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  attribution: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
 });
-
-// Local Google styling keeps map loads on the existing native SDK configuration.
-const illustratedMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#F2F3F7' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#777785' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry',
-    stylers: [{ visibility: 'on' }, { color: '#D4E8A5' }],
-  },
-  { featureType: 'road', elementType: 'geometry.fill', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#D3D5E3' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#ACDDF5' }] },
-];

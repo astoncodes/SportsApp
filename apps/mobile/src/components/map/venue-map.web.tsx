@@ -1,27 +1,12 @@
-import 'leaflet/dist/leaflet.css';
-
-import L from 'leaflet';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import mapboxgl from 'mapbox-gl';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFonts } from 'expo-font';
-import { sportIcon } from '../ui/primitives';
 import { useEffect, useRef } from 'react';
-
+import { sportIcon } from '../ui/primitives';
 import { palettes } from '../../theme/tokens';
-import { WEB_TILE_ATTRIBUTION_HTML, WEB_TILE_SOURCES } from './types';
+import { env } from '../../lib/env';
 import type { MapMarker, VenueMapProps } from './types';
-
-/**
- * Web map adapter.
- *
- * Metro resolves this instead of `venue-map.tsx` when bundling for web, so the
- * Expo web preview shows a real interactive map rather than the blank space a
- * native-only map component leaves behind.
- *
- * Leaflet is driven imperatively through refs rather than wrapped in a React
- * binding: markers update dozens of times as activity changes, and tearing
- * down and rebuilding a React-managed layer on each change makes pins visibly
- * flicker.
- */
 
 function markerHtml(marker: MapMarker, scheme: 'light' | 'dark'): string {
   const colors = palettes[scheme];
@@ -53,150 +38,141 @@ export default function VenueMap({
   colorScheme,
   style,
 }: VenueMapProps) {
-  useFonts(MaterialCommunityIcons.font);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const tileRef = useRef<L.TileLayer | null>(null);
-  const markerLayerRef = useRef<L.LayerGroup | null>(null);
-  const userLayerRef = useRef<L.LayerGroup | null>(null);
-  const onRegionChangeRef = useRef(onRegionChange);
-  const onPressCoordinateRef = useRef(onPressCoordinate);
-  // Kept in an effect rather than assigned during render: the map's moveend
-  // handler is registered once and needs the latest callback without the
-  // subscription being torn down on every parent render.
+  const [fontsLoaded] = useFonts(MaterialCommunityIcons.font);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const callbacks = useRef({ onRegionChange, onPressCoordinate });
   useEffect(() => {
-    onRegionChangeRef.current = onRegionChange;
-  }, [onRegionChange]);
-  useEffect(() => {
-    onPressCoordinateRef.current = onPressCoordinate;
-  }, [onPressCoordinate]);
+    callbacks.current = { onRegionChange, onPressCoordinate };
+  }, [onRegionChange, onPressCoordinate]);
 
-  // Create once. Re-creating the map on prop changes would reset zoom and pan
-  // every time a check-in landed.
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-
-    const map = L.map(containerRef.current, {
-      center: [region.latitude, region.longitude],
-      zoom: 13,
-      zoomControl: false,
-      attributionControl: true,
+    if (!containerRef.current || !env.mapboxAccessToken) return;
+    const map = new mapboxgl.Map({
+      container: containerRef.current,
+      accessToken: env.mapboxAccessToken,
+      style: `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`,
+      center: [region.longitude, region.latitude],
+      zoom: Math.log2(360 / Math.max(region.longitudeDelta, 0.0001)),
     });
-
-    L.control.zoom({ position: 'bottomleft' }).addTo(map);
-    markerLayerRef.current = L.layerGroup().addTo(map);
-    userLayerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
-
+    map.on('style.load', () => {
+      map.addSource('green-streets', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
+      map.addLayer(
+        {
+          id: 'green-street-lines',
+          type: 'line',
+          source: 'green-streets',
+          'source-layer': 'road',
+          minzoom: 10,
+          layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: {
+            'line-color': '#16A34A',
+            'line-opacity': 0.7,
+            'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 2, 18, 5],
+          },
+        },
+        map.getLayer('road-label') ? 'road-label' : undefined,
+      );
+    });
     map.on('moveend', () => {
-      const centre = map.getCenter();
+      const center = map.getCenter();
       const bounds = map.getBounds();
-      onRegionChangeRef.current?.({
-        latitude: centre.lat,
-        longitude: centre.lng,
-        latitudeDelta: Math.abs(bounds.getNorth() - bounds.getSouth()),
-        longitudeDelta: Math.abs(bounds.getEast() - bounds.getWest()),
-      });
+      if (bounds)
+        callbacks.current.onRegionChange?.({
+          latitude: center.lat,
+          longitude: center.lng,
+          latitudeDelta: bounds.getNorth() - bounds.getSouth(),
+          longitudeDelta: bounds.getEast() - bounds.getWest(),
+        });
     });
-    map.on('click', (event) => {
-      onPressCoordinateRef.current?.({
-        latitude: event.latlng.lat,
-        longitude: event.latlng.lng,
-      });
-    });
-
-    const style = document.createElement('style');
-    style.textContent = `.leaflet-container{background:#F2F3F7;font-family:ui-sans-serif,system-ui}
-      .leaflet-marker-icon:focus-visible{outline:3px solid #2563EB;outline-offset:3px;border-radius:8px}`;
-    document.head.appendChild(style);
-
+    map.on('click', (event) =>
+      callbacks.current.onPressCoordinate?.({
+        latitude: event.lngLat.lat,
+        longitude: event.lngLat.lng,
+      }),
+    );
     return () => {
       map.remove();
       mapRef.current = null;
-      style.remove();
     };
+    // Camera and style changes are handled without replacing the map.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Swap the basemap when the theme changes, rather than rebuilding the map.
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    tileRef.current?.remove();
-    tileRef.current = L.tileLayer(WEB_TILE_SOURCES[colorScheme], {
-      attribution: WEB_TILE_ATTRIBUTION_HTML,
-      maxZoom: 19,
-      // Explicitly bounded. This is an interactive map, not a prefetcher.
-      minZoom: 9,
-    }).addTo(map);
+    mapRef.current?.setStyle(
+      `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`,
+    );
   }, [colorScheme]);
 
   useEffect(() => {
-    const layer = markerLayerRef.current;
-    if (!layer) return;
-
-    layer.clearLayers();
-    for (const marker of markers) {
-      const session = marker.kind === 'session';
-      L.marker([marker.latitude, marker.longitude], {
-        icon: L.divIcon({
-          html: markerHtml(marker, colorScheme),
-          className: '',
-          iconSize: [48, session ? 56 : 44],
-          iconAnchor: session ? [24, 49] : [24, 24],
-        }),
-        zIndexOffset: marker.selected ? 1000 : session ? 500 : 0,
-        keyboard: true,
-        title: marker.label,
-        alt: marker.label,
+    const map = mapRef.current;
+    if (!map) return;
+    const pins = markers.map((marker) => {
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.setAttribute('aria-label', marker.label);
+      element.title = marker.label;
+      element.style.cssText = 'padding:0;border:0;background:transparent;cursor:pointer';
+      element.innerHTML = markerHtml(marker, colorScheme);
+      element.addEventListener('click', (event) => {
+        event.stopPropagation();
+        onSelectMarker?.(marker.id);
+      });
+      const pin = new mapboxgl.Marker({
+        element,
+        anchor: marker.kind === 'session' ? 'bottom' : 'center',
+        offset: marker.kind === 'session' ? [0, 7] : [0, -2],
         draggable: marker.draggable,
       })
-        .on('click', () => onSelectMarker?.(marker.id))
-        .on('dragend', (event) => {
-          const coordinate = (event.target as L.Marker).getLatLng();
-          onMarkerDragEnd?.(marker.id, {
-            latitude: coordinate.lat,
-            longitude: coordinate.lng,
-          });
-        })
-        .addTo(layer);
-    }
-  }, [markers, colorScheme, onMarkerDragEnd, onSelectMarker]);
-
-  useEffect(() => {
-    const layer = userLayerRef.current;
-    if (!layer) return;
-    layer.clearLayers();
-    if (!userLocation) return;
-
-    L.marker([userLocation.latitude, userLocation.longitude], {
-      icon: L.divIcon({
-        className: '',
-        html: '<div style="width:40px;height:40px;box-sizing:border-box;border-radius:50%;background:#16A34A26;border:1px solid #16A34A50;display:flex;align-items:center;justify-content:center"><div style="width:18px;height:18px;border-radius:50%;background:#16A34A;border:3px solid white;box-shadow:0 2px 5px #0003"></div></div>',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-      }),
-      title: 'Your location',
-      alt: 'Your location',
-      zIndexOffset: 2000,
-      interactive: false,
-    }).addTo(layer);
-  }, [userLocation, colorScheme]);
-
-  useEffect(() => {
-    mapRef.current?.setView([region.latitude, region.longitude], mapRef.current.getZoom(), {
-      animate: true,
+        .setLngLat([marker.longitude, marker.latitude])
+        .addTo(map);
+      pin.on('dragend', () => {
+        const point = pin.getLngLat();
+        onMarkerDragEnd?.(marker.id, { latitude: point.lat, longitude: point.lng });
+      });
+      return pin;
     });
-    // A location request also recentres when the device has not moved.
+    return () => pins.forEach((pin) => pin.remove());
+  }, [markers, colorScheme, fontsLoaded, onSelectMarker, onMarkerDragEnd]);
+
+  useEffect(() => {
+    if (!mapRef.current || !userLocation) return;
+    const element = document.createElement('div');
+    element.setAttribute('aria-label', 'Your live location');
+    element.style.cssText =
+      'width:20px;height:20px;border-radius:50%;background:#2685F5;border:3px solid white;box-shadow:0 0 0 8px #2685F530;pointer-events:none';
+    const dot = new mapboxgl.Marker({ element })
+      .setLngLat([userLocation.longitude, userLocation.latitude])
+      .addTo(mapRef.current);
+    return () => {
+      dot.remove();
+    };
+  }, [userLocation]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const center = map.getCenter();
+    if (
+      Math.abs(center.lat - region.latitude) < 1e-8 &&
+      Math.abs(center.lng - region.longitude) < 1e-8
+    )
+      return;
+    map.easeTo({ center: [region.longitude, region.latitude], duration: 250 });
   }, [region.latitude, region.longitude, recenterRequest]);
 
   return (
     <div
       ref={containerRef}
       role="application"
-      aria-label="Map of nearby venues. A list of the same venues is available below."
-      style={{ width: '100%', height: '100%', ...(style as object) }}
-    />
+      aria-label="Map of nearby venues. The same venues are listed below."
+      style={{ width: '100%', height: '100%', ...style }}
+    >
+      {!env.mapboxAccessToken && (
+        <p role="status">Map unavailable. You can still browse the venue list.</p>
+      )}
+    </div>
   );
 }

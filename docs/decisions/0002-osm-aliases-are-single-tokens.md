@@ -14,7 +14,7 @@ seven-a-side;five-a-side;soccer
 ice_hockey;ice_skating;basketball;volleyball;pickleball;fitness;...
 ```
 
-The importer splits on `;`, trims, and lowercases, then looks each token up in
+Any future importer must split on `;`, trims, and lowercases, then looks each token up in
 `osm_sport_aliases`. If either the split or the trim is skipped, the lookup misses and the sport
 is **silently lost** — the venue imports looking merely unclassified rather than broken.
 
@@ -49,9 +49,10 @@ Each clause catches a distinct failure of the importer's normalization:
 ## Consequences
 
 - A normalization bug fails loudly at write time rather than quietly dropping sports.
-- `split_sport_tokens()` deliberately does **not** repair internal whitespace. A value like
+- Normalization must **not** repair internal whitespace. A value like
   `beach volleyball` is returned unchanged, fails to match any alias, and surfaces as _unknown_
   for a human to classify. Silently rewriting a value we do not understand would hide the fact
   that OSM contains something unexpected.
-- Asserted from both sides: `supabase/tests/001` proves the database rejects the bad forms, and
-  `tools/venue-importer/tests/test_normalize.py` proves the importer never produces them.
+- `supabase/tests/001_schema_constraints.sql` proves the database rejects the bad forms.
+  The unfinished Python importer and its unit tests have been removed; this
+  database constraint remains the authority for future ingestion tools.

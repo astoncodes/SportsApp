@@ -20,6 +20,7 @@ import { useSession } from '../../providers/auth-context';
 import { radius, space, usePalette, useThemeName } from '../../theme';
 import {
   useJoinSession,
+  useRunAttendance,
   useSessionControls,
   useSendMessage,
   useSessionMessages,
@@ -37,6 +38,10 @@ export function SessionScreen() {
   const router = useRouter();
   const { session } = useSession();
   const overview = useSessionOverview(sessionId, session?.user.id);
+  const attendance = useRunAttendance(
+    overview.data ? [overview.data.run_series_id] : [],
+    session?.user.id,
+  );
   const messages = useSessionMessages(overview.data?.isMember ? sessionId : undefined);
   const join = useJoinSession();
   const send = useSendMessage(sessionId, session?.user.id ?? '');
@@ -127,6 +132,11 @@ export function SessionScreen() {
   }
 
   const item = overview.data;
+  const counts = attendance.data?.find(
+    (response) =>
+      response.run_series_id === item.run_series_id &&
+      response.occurrence_date === item.occurrence_date,
+  );
   const cancelled = Boolean(item.cancelled_at);
   const ended = new Date(item.ends_at).getTime() <= now;
   const busy = controls.cancel.isPending || controls.leave.isPending || controls.edit.isPending;
@@ -148,6 +158,15 @@ export function SessionScreen() {
           <AppText variant="body" tone="muted">
             {item.venueName} · {weekdayName(item.starts_at)} at {timeOfDay(item.starts_at)}
           </AppText>
+          <View accessibilityLiveRegion="polite">
+            <AppText variant="body" tone="muted">
+              {attendance.isPending
+                ? 'Loading attendance…'
+                : attendance.isError
+                  ? 'Attendance counts unavailable'
+                  : `${counts?.going_count ?? 0} going · ${counts?.maybe_count ?? 0} maybe`}
+            </AppText>
+          </View>
         </View>
 
         {cancelled && (

@@ -13,7 +13,7 @@ type Extra = {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   geoapifyApiKey?: string;
-  cartoBasemapKey?: string;
+  mapboxAccessToken?: string;
 };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
@@ -33,5 +33,5 @@ export const env = {
   supabaseUrl: required(extra.supabaseUrl, 'EXPO_PUBLIC_SUPABASE_URL'),
   supabaseAnonKey: required(extra.supabaseAnonKey, 'EXPO_PUBLIC_SUPABASE_ANON_KEY'),
   geoapifyApiKey: extra.geoapifyApiKey?.trim() || '',
-  cartoBasemapKey: extra.cartoBasemapKey?.trim() || '',
+  mapboxAccessToken: extra.mapboxAccessToken?.trim() || '',
 } as const;
