@@ -74,7 +74,7 @@ export default function VenueMap({
     <View style={[StyleSheet.absoluteFill, style]}>
       <MapView
         style={StyleSheet.absoluteFill}
-        styleURL={colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Light}
+        styleURL={`mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`}
         compassEnabled={false}
         scaleBarEnabled={false}
         onPress={(event) => {
@@ -107,7 +107,7 @@ export default function VenueMap({
           <LineLayer
             id="green-street-lines"
             sourceLayerID="road"
-            belowLayerID="road-label"
+            belowLayerID="road-label-simple"
             minZoomLevel={10}
             style={{
               lineColor: '#16A34A',

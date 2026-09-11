@@ -41,6 +41,7 @@ export default function VenueMap({
   const [fontsLoaded] = useFonts(MaterialCommunityIcons.font);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const appliedScheme = useRef(colorScheme);
   const callbacks = useRef({ onRegionChange, onPressCoordinate });
   useEffect(() => {
     callbacks.current = { onRegionChange, onPressCoordinate };
@@ -72,7 +73,7 @@ export default function VenueMap({
             'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 2, 18, 5],
           },
         },
-        map.getLayer('road-label') ? 'road-label' : undefined,
+        map.getStyle()?.layers.find((layer) => layer.type === 'symbol')?.id,
       );
     });
     map.on('moveend', () => {
@@ -101,8 +102,11 @@ export default function VenueMap({
   }, []);
 
   useEffect(() => {
+    if (appliedScheme.current === colorScheme) return;
+    appliedScheme.current = colorScheme;
     mapRef.current?.setStyle(
       `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`,
+      { diff: false, localFontFamily: undefined, localIdeographFontFamily: undefined },
     );
   }, [colorScheme]);
 
