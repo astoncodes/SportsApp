@@ -129,8 +129,7 @@ function collectFiles(dir) {
   return files;
 }
 
-function scan({ extraContent = null } = {}) {
-  const secrets = readEnvSecrets();
+function scan({ extraContent = null, secrets = readEnvSecrets() } = {}) {
   const findings = [];
 
   const targets = BUNDLE_DIRS.flatMap(collectFiles).map((path) => ({
@@ -167,7 +166,8 @@ function scan({ extraContent = null } = {}) {
 // --self-test plants a fake credential and confirms the scanner catches it. A
 // security check nobody has seen fail is a security check nobody should trust.
 if (process.argv.includes('--self-test')) {
-  const secrets = readEnvSecrets();
+  // Always exercise literal matching, including on CI where no real .env exists.
+  const secrets = [{ key: 'SELF_TEST_SECRET', value: 'synthetic-bundle-scanner-secret-12345' }];
   const failures = [];
 
   // Path 1: a shape rule catching a pasted key in a text bundle.
@@ -175,22 +175,24 @@ if (process.argv.includes('--self-test')) {
     label: '<self-test>.js',
     content: 'const key = "sb_secret_AAAAAAAAAAAAAAAAAAAAAAAA"; // planted',
   };
-  if (!scan({ extraContent: shapePlant }).findings.some((f) => f.startsWith('<self-test>'))) {
+  if (
+    !scan({ extraContent: shapePlant, secrets }).findings.some((f) => f.startsWith('<self-test>'))
+  ) {
     failures.push('shape rule did not catch a pasted secret key in a .js bundle');
   }
 
-  // Path 2: exact matching catching a real .env value inside compiled
+  // Path 2: exact matching catching a synthetic secret inside compiled
   // bytecode, where shape rules deliberately do not run.
-  if (secrets.length > 0) {
-    const bytecodePlant = {
-      label: '<self-test>.hbc',
-      content: `garbage${secrets[0].value}garbage`,
-    };
-    if (!scan({ extraContent: bytecodePlant }).findings.some((f) => f.startsWith('<self-test>'))) {
-      failures.push('exact matching did not catch a real .env value inside .hbc bytecode');
-    }
-  } else {
-    console.warn('No .env present — skipping the bytecode arm of the self-test.');
+  const bytecodePlant = {
+    label: '<self-test>.hbc',
+    content: `garbage${secrets[0].value}garbage`,
+  };
+  if (
+    !scan({ extraContent: bytecodePlant, secrets }).findings.some((f) =>
+      f.startsWith('<self-test>'),
+    )
+  ) {
+    failures.push('exact matching did not catch a synthetic secret inside .hbc bytecode');
   }
 
   // Path 3: the known false positive must NOT fire. This is the regression
@@ -199,7 +201,9 @@ if (process.argv.includes('--self-test')) {
     label: '<self-test>.hbc',
     content: 'sb_secret_PresenceAdapterConcatenatedStringTable',
   };
-  if (scan({ extraContent: falsePositive }).findings.some((f) => f.startsWith('<self-test>'))) {
+  if (
+    scan({ extraContent: falsePositive, secrets }).findings.some((f) => f.startsWith('<self-test>'))
+  ) {
     failures.push('adjacent bytecode strings were misreported as a leaked key');
   }
 

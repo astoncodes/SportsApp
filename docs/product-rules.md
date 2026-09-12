@@ -70,7 +70,9 @@ Client timers also remove a check-in from the UI at `expires_at` even if no data
 ## Location gating and privacy
 
 - Foreground location only. Requested when needed, never in the background.
-- Browsing and scheduled runs work fine without location permission.
+- Location permission and an available device reading are required before opening
+  the mobile app, including browsing and scheduled runs. There is no fallback city.
+  This requirement was confirmed by the owner on September 12, 2026.
 - Broadcasting "I'm here" requires a recent reading: within **250 m** of the venue, with reported
   accuracy of **100 m or better**.
 - This is **an anti-abuse friction control, not proof of presence**. It raises the cost of a fake

@@ -6,7 +6,7 @@
 4. Review the preview and optionally add a caption. Discard to choose another photo.
 5. Tap **Post to session feed**. A fresh location check runs before uploading. Successful posts open the public feed. A failed attempt keeps the preview and caption for retry.
 
-Location readings must be no more than two minutes old, with reported accuracy of 100 metres or better. Permission denial, poor GPS accuracy, and being outside the area block posting without blocking chat or browsing. Camera access expires two minutes after the initial location check. Posting always checks again. This applies to session media, including sessions at reviewed venues; it does not change venue-submission photos.
+Location readings must be no more than two minutes old, with reported accuracy of 100 metres or better. Location permission and an available reading are required to open the app. Poor GPS accuracy or being outside the session area additionally blocks photo posting. Camera access expires two minutes after the initial location check. Posting always checks again. This applies to session media, including sessions at reviewed venues; it does not change venue-submission photos.
 
 The database computes distance with PostGIS, requires session membership and a non-cancelled session, and prevents direct client inserts from bypassing the RPC. Upload permissions expire 15 minutes after post creation. Coordinates are not retained in the post; only the verification timestamp is stored. This validates device-reported location, not cryptographic proof of physical presence. Existing posts remain readable.
 

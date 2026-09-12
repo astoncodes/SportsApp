@@ -138,15 +138,13 @@ try {
   for (const player of [owner, peer]) {
     const postId = crypto.randomUUID();
     unwrap(
-      await admin
-        .from('session_posts')
-        .insert({
-          id: postId,
-          session_id: sessionId,
-          author_id: player.id,
-          caption: 'Temporary deletion test',
-          location_verified_at: new Date().toISOString(),
-        }),
+      await admin.from('session_posts').insert({
+        id: postId,
+        session_id: sessionId,
+        author_id: player.id,
+        caption: 'Temporary deletion test',
+        location_verified_at: new Date().toISOString(),
+      }),
     );
     const path = `${player.id}/${postId}/photo.png`;
     unwrap(
@@ -167,13 +165,34 @@ try {
         .insert({ post_id: postId, uploader_id: player.id, kind: 'image', storage_path: path }),
     );
     paths.push(path);
+    // A successful upload whose client never attached session_media metadata.
+    if (player.id === peer.id) {
+      const unattached = `${player.id}/${postId}/unattached.png`;
+      unwrap(
+        await player.client.storage
+          .from('session-media')
+          .upload(
+            unattached,
+            Buffer.from(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+              'base64',
+            ),
+            { contentType: 'image/png' },
+          ),
+      );
+      paths.push(unattached);
+    }
   }
   console.log(
     'PASS deletion API: identity/confirmation checks, server-only staging, write freeze and resumable deletion.',
   );
 
   browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const context = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    geolocation: { latitude: 46.234, longitude: -63.129 },
+    permissions: ['geolocation'],
+  });
   await context.addInitScript(
     ({ key, value }) => {
       if (!sessionStorage.getItem('deletion-fixture')) {
@@ -185,9 +204,14 @@ try {
   );
   const page = await context.newPage();
   const errors = [];
+  let expectedNetworkFailure = false;
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
-    if (message.type() === 'error') errors.push(message.text());
+    if (
+      message.type() === 'error' &&
+      !(expectedNetworkFailure && message.text().includes('net::ERR_INTERNET_DISCONNECTED'))
+    )
+      errors.push(message.text());
   });
   page.setDefaultTimeout(30000);
   await page.goto('http://localhost:8081/profile');
@@ -197,6 +221,18 @@ try {
   const submit = page.getByRole('button', { name: 'Permanently delete account', exact: true });
   assert.equal(await submit.getAttribute('aria-disabled'), 'true');
   await page.getByRole('textbox', { name: 'Type DELETE to confirm' }).fill('DELETE');
+  expectedNetworkFailure = true;
+  await page.route('**/functions/v1/delete-account', (route) =>
+    route.abort('internetdisconnected'),
+  );
+  await submit.click();
+  await page.getByText('Could not finish deletion. Please retry.', { exact: true }).waitFor();
+  assert(
+    (await admin.auth.admin.getUserById(owner.id)).data.user,
+    'Network failure leaves account intact',
+  );
+  await page.unroute('**/functions/v1/delete-account');
+  expectedNetworkFailure = false;
   await submit.click();
   await page
     .getByText('Your account and its data have been deleted.', { exact: true })
@@ -221,7 +257,7 @@ try {
   await page.getByRole('textbox', { name: 'Email address', exact: true }).waitFor();
   assert.equal(errors.length, 0, errors.join('\n'));
   console.log(
-    'PASS deletion browser: cancel → explicit confirmation → account removal → owner/peer media cleanup → local logout survives reload.',
+    'PASS deletion browser: cancel → network error/retry → explicit confirmation → account removal → owner/peer/unattached media cleanup → local logout survives reload.',
   );
 } finally {
   await browser?.close();

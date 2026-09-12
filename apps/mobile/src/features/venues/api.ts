@@ -17,9 +17,6 @@ export type VenueActivity = FunctionReturns<'venue_activity'>[number];
 export type UpcomingRun = FunctionReturns<'upcoming_runs'>[number];
 export type Sport = Tables<'sports'>;
 
-/** Charlottetown city centre — the fallback view before location is granted. */
-export const DEFAULT_CENTER = { latitude: 46.234, longitude: -63.129 } as const;
-
 export function useSports() {
   return useQuery({
     queryKey: ['sports'],

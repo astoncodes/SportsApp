@@ -5,7 +5,8 @@ import { TextInput, View } from 'react-native';
 
 import { Body, Screen, Title } from '../../components/screen';
 import { AppText, Button, Chip } from '../../components/ui/primitives';
-import { DEFAULT_CENTER, useSports, useVenueDetail } from '../venues/api';
+import { useSports, useVenueDetail } from '../venues/api';
+import { useRequiredLocation } from '../location/required-location';
 import VenueMap from '../../components/map/venue-map';
 import type { MapCoordinate, MapRegion } from '../../components/map/types';
 import { PlaceSearch } from '../geocoding/place-search';
@@ -15,6 +16,7 @@ import { useSession } from '../../providers/auth-context';
 import { radius, space, usePalette, useThemeName } from '../../theme';
 
 export function NewRunScreen() {
+  const initialLocation = useRequiredLocation();
   const { venueId: initialVenueId } = useLocalSearchParams<{ venueId?: string }>();
   const [selectedVenueId, setSelectedVenueId] = useState<string>();
   const [venueSearch, setVenueSearch] = useState('');
@@ -24,7 +26,7 @@ export function NewRunScreen() {
   const venueId = locationMode === 'venue' ? (selectedVenueId ?? initialVenueId) : undefined;
   const [pin, setPin] = useState<MapCoordinate | null>(null);
   const [mapRegion, setMapRegion] = useState<MapRegion>({
-    ...DEFAULT_CENTER,
+    ...initialLocation,
     latitudeDelta: 0.025,
     longitudeDelta: 0.025,
   });
@@ -301,7 +303,7 @@ export function NewRunScreen() {
             }}
           />
           {deviceLocation.state.status === 'denied' && (
-            <Body>Location permission was denied. You can still place the pin manually.</Body>
+            <Body>Enable location services and allow access to continue.</Body>
           )}
           {deviceLocation.state.status === 'unavailable' && (
             <Body>{deviceLocation.state.message}</Body>

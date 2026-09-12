@@ -173,7 +173,8 @@ Auto-expiry was defined for live check-ins but not for schedules. A weekly run f
 ### 5.3 Location gating and privacy
 
 - The mobile client requests foreground location only when needed.
-- Browsing and scheduled runs work without location permission.
+- Location permission and an available device reading are required before opening
+  the mobile app. There is no fallback city (owner decision, September 12, 2026).
 - Broadcasting "I'm here" requires a recent location reading.
 - Initial threshold: the reported point must be within 250 metres of the venue and have reported accuracy of 100 metres or better.
 - The threshold is a configurable anti-abuse friction control, not proof of identity or perfect physical presence.

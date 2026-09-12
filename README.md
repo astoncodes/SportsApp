@@ -193,21 +193,28 @@ or the saved CLI token. Keep tokens server-side; they are not app configuration.
 Run these from the repository root. The full check uses Node and npm:
 
 ```bash
-npm run check          # formatting, lint, types, JavaScript/TypeScript unit tests
-npm run test:maps      # Geoapify adapter checks; no live API requests
+npm run check          # formatting, lint, types, unit tests and tooling self-checks
+npm run test:maps      # focused subset of the unit suite: geocoding and map distances
 npm run check:bundles  # builds and server-credential scanning
 npm run db:types       # read hosted schema and regenerate TypeScript types
 ```
 
 The automatic **App checks** workflow runs checks/builds with offline placeholder
 configuration. It requires neither containers nor hosted database credentials.
+Map tests run in the mobile Vitest suite; there is no separate legacy tile-provider
+test runner. CI names formatting, lint, types, tests and builds separately so the
+failed step identifies the problem. `npm run check` includes the database runner's
+isolation self-test and the client-secret scanner's self-test; these do not connect
+to Supabase. Browser and hosted integration scripts are explicit local checks and
+are not run automatically against a live backend.
 
 Database tests are separate maintenance checks, not a prerequisite to running the
 app. Prepare an isolated hosted test project with migrations and synthetic fixtures,
 set `SUPABASE_TEST_PROJECT_REF` and `SUPABASE_TEST_DB_URL`, then run `npm run db:test`.
 The runner rejects the configured app project and never resets or seeds a database.
 The optional **Hosted database checks** workflow is triggered manually and requires
-a configured `database-tests` GitHub environment.
+a configured `database-tests` GitHub environment. It validates the test-project
+credentials and app-project reference before installing dependencies or running tests.
 
 The social integration test creates and removes temporary users, sessions and media.
 Use an explicitly selected hosted project matching your `.env`:

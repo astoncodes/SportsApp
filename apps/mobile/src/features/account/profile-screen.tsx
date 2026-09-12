@@ -102,6 +102,12 @@ export function ProfileAccountScreen() {
               <ProfileForm userId={session.user.id} onSaved={() => setEditing(false)} />
             </View>
           )}
+          <Button
+            label="Your venue submissions"
+            icon="map-marker-outline"
+            variant="outline"
+            onPress={() => router.push('/venue-submission')}
+          />
         </>
       )}
       <View

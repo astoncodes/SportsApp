@@ -26,6 +26,8 @@ The audit log is readable only by admins and cannot be changed through their API
 
 The queue handles user-submitted canonical venues. Spontaneous sessions do not
 need review. Import tooling and social-content moderation are separate work.
+Submitters can revisit their private review history from Profile → Your venue
+submissions, including decisions, reviewer notes and links to approved venues.
 
 ## Choose an admin account later
 
@@ -51,9 +53,15 @@ npm run check
 npm run build --workspace apps/admin
 node scripts/check-client-bundles.mjs
 npm run db:test
+npm run test:browser:venues -- --project-ref=YOUR_PROJECT_REF
 ```
 
 Database tests require the separate hosted test project documented in the README.
+The browser venue test requires the mobile and admin dev servers, an explicitly
+selected app project, and a local management credential. It creates temporary
+accounts and venues, checks submission, approval, rejection, duplicate linking,
+venue edits, verification, removal/restoration and submission history, then removes
+its fixtures. These browser checks passed on September 12, 2026.
 `010_admin_review.sql` covers authorization, atomic approval, repeat review rejection,
 rejection reasons, duplicate linking, edits, and audit writes. The configured app
 project has migration `20260906110000_admin_review.sql` applied.

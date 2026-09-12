@@ -41,6 +41,17 @@ function unwrap(result) {
   return result.data;
 }
 try {
+  for (const [name, args] of [
+    ['current_profile', {}],
+    ['is_session_member', { p_session_id: '00000000-0000-0000-0000-000000000000' }],
+    [
+      'join_run_session',
+      { p_run_series_id: '00000000-0000-0000-0000-000000000000', p_occurrence_date: '2026-09-13' },
+    ],
+  ]) {
+    const result = await anonymous.rpc(name, args);
+    assert.equal(result.error?.code, '42501', `${name} requires a signed-in API role`);
+  }
   const clients = [];
   for (const role of ['member', 'outsider']) {
     const email = `social-${role}-${crypto.randomUUID()}@example.test`;

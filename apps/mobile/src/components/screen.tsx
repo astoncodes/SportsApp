@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { radius, space as spacing, usePalette } from '../theme';
+import { space as spacing, usePalette } from '../theme';
 
 /** Standard page frame: safe-area aware, scrollable, themed. */
 export function Screen({ children }: { children: ReactNode }) {
@@ -33,23 +33,6 @@ export function Body({ children }: { children: ReactNode }) {
   return <Text style={[styles.body, { color: colors.textMuted }]}>{children}</Text>;
 }
 
-/**
- * Marks a screen that exists as a route but has no behaviour yet.
- *
- * It names the phase that fills it in, so nobody has to guess whether they are
- * looking at something unfinished or something broken.
- */
-export function ComingInPhase({ phase, children }: { phase: string; children: ReactNode }) {
-  const colors = usePalette();
-
-  return (
-    <View style={[styles.note, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.phase, { color: colors.accent }]}>{phase}</Text>
-      <Text style={[styles.body, { color: colors.textMuted }]}>{children}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.xl,
@@ -67,17 +50,5 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  note: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  phase: {
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 });

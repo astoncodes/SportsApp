@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -21,8 +21,8 @@ import { BrandMark } from '../../src/components/ui/brand';
 import { ResultsSheet } from '../../src/components/ui/results-sheet';
 import { usePublicSessionPins } from '../../src/features/community/api';
 import { useAccountSports } from '../../src/features/account/api';
-import { useDeviceLocation } from '../../src/features/location/use-device-location';
-import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../../src/features/venues/api';
+import { useRequiredLocation } from '../../src/features/location/required-location';
+import { useNearbyVenues, useSports } from '../../src/features/venues/api';
 import { VenueCard } from '../../src/features/venues/venue-card';
 import { useSession } from '../../src/providers/auth-context';
 import { radius, space, useThemeName, usePalette } from '../../src/theme';
@@ -37,6 +37,7 @@ import type { IconName } from '../../src/components/ui/primitives';
  * the question this screen exists for.
  */
 export default function LiveScreen() {
+  const deviceLocation = useRequiredLocation();
   const colors = usePalette();
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
@@ -56,35 +57,14 @@ export default function LiveScreen() {
       ? filterOverride.sportIds
       : (preferredSports.data ?? []);
   const [view, setView] = useState<'map' | 'list'>('map');
-  const [center, setCenter] = useState<{ latitude: number; longitude: number }>(DEFAULT_CENTER);
+  const [center, setCenter] = useState<{ latitude: number; longitude: number }>(deviceLocation);
 
   const [visibleCenter, setVisibleCenter] = useState<{ latitude: number; longitude: number }>(
-    DEFAULT_CENTER,
+    deviceLocation,
   );
   const [recenterRequest, setRecenterRequest] = useState(0);
 
-  const { state: locationState, request: requestLocation } = useDeviceLocation({ live: true });
-  const didRequestLocation = useRef(false);
-  const handleLocate = useCallback(async () => {
-    const coords = await requestLocation();
-    if (coords) {
-      setCenter({ latitude: coords.latitude, longitude: coords.longitude });
-      setVisibleCenter({ latitude: coords.latitude, longitude: coords.longitude });
-      setRecenterRequest((current) => current + 1);
-    }
-  }, [requestLocation]);
-
-  useEffect(() => {
-    if (didRequestLocation.current) return;
-    didRequestLocation.current = true;
-    void handleLocate();
-  }, [handleLocate]);
-
-  const locating = locationState.status === 'idle' || locationState.status === 'requesting';
-  const showRecenter =
-    view === 'map' &&
-    locationState.status === 'granted' &&
-    isAwayFromLocation(visibleCenter, locationState.coords);
+  const showRecenter = view === 'map' && isAwayFromLocation(visibleCenter, deviceLocation);
   const sports = useSports();
   const sessionPins = usePublicSessionPins(selectedSportIds);
   const venues = useNearbyVenues({
@@ -219,14 +199,7 @@ export default function LiveScreen() {
               }
               router.push(`/venue/${id}`);
             }}
-            userLocation={
-              locationState.status === 'granted'
-                ? {
-                    latitude: locationState.coords.latitude,
-                    longitude: locationState.coords.longitude,
-                  }
-                : null
-            }
+            userLocation={deviceLocation}
           />
         </View>
       )}
@@ -246,11 +219,7 @@ export default function LiveScreen() {
               <View style={styles.regionRow}>
                 <MaterialCommunityIcons name="map-marker" size={12} color={colors.textMuted} />
                 <AppText variant="caption" tone="muted">
-                  {locating
-                    ? 'Finding your location…'
-                    : locationState.status === 'granted'
-                      ? 'Near you'
-                      : 'Charlottetown, PEI'}
+                  Near you
                 </AppText>
               </View>
             </View>
@@ -319,9 +288,8 @@ export default function LiveScreen() {
               <View style={[styles.controlDivider, { backgroundColor: colors.glassBorder }]} />
               <PressableSurface
                 onPress={() => {
-                  if (locationState.status !== 'granted') return;
-                  setCenter(locationState.coords);
-                  setVisibleCenter(locationState.coords);
+                  setCenter(deviceLocation);
+                  setVisibleCenter(deviceLocation);
                   setRecenterRequest((current) => current + 1);
                 }}
                 accessibilityLabel="Centre the map on my location"
@@ -334,27 +302,6 @@ export default function LiveScreen() {
           )}
         </AdaptiveGlassSurface>
       </View>
-
-      {/* Permission denial is explained where it happened, and never blocks
-          browsing — the map keeps working, it just cannot centre on you. */}
-      {(locationState.status === 'denied' || locationState.status === 'unavailable') && (
-        <View style={[styles.notice, { top: insets.top + 144 }]} pointerEvents="box-none">
-          <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
-            <AppText variant="caption">
-              {locationState.status === 'denied'
-                ? 'Location is off. Showing Charlottetown as a default area; distances are from its centre.'
-                : 'Could not find your location. Showing Charlottetown as a default area. Try enabling location below.'}
-            </AppText>
-            <Button
-              label="Enable location"
-              size="sm"
-              onPress={() => {
-                void handleLocate();
-              }}
-            />
-          </AdaptiveGlassSurface>
-        </View>
-      )}
 
       {view === 'map' ? (
         <ResultsSheet
@@ -399,5 +346,4 @@ const styles = StyleSheet.create({
   controlStack: { alignItems: 'center' },
   controlButton: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   controlDivider: { height: StyleSheet.hairlineWidth, width: 28 },
-  notice: { position: 'absolute', left: space.md, right: 76, zIndex: 19, marginTop: 56 },
 });

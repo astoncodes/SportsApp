@@ -1,5 +1,5 @@
 import * as Location from 'expo-location';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { readDevicePosition } from './read-device-position';
 
@@ -14,15 +14,12 @@ export type LocationState =
   | { status: 'unavailable'; message: string };
 
 /**
- * Foreground location, requested only at the moment it is needed.
- *
- * Denial is a first-class outcome, not an error. Browsing venues and reading
- * scheduled runs work perfectly without location — the only thing it gates is
- * "I'm here", which genuinely cannot be verified any other way. An app that
- * blocks its own map behind a permission prompt teaches people to deny it.
+ * Foreground location with explicit denied/unavailable outcomes. The root
+ * RequiredLocation boundary requires a successful reading before opening the app.
  */
 export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
   const [state, setState] = useState<LocationState>({ status: 'idle' });
+  const requestGeneration = useRef(0);
 
   const granted = state.status === 'granted';
   useEffect(() => {
@@ -73,10 +70,12 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
   }, [live, granted]);
 
   const request = useCallback(async () => {
+    const generation = ++requestGeneration.current;
     setState({ status: 'requesting' });
 
     try {
       const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+      if (generation !== requestGeneration.current) return null;
 
       if (status !== 'granted') {
         setState({ status: 'denied', canAskAgain });
@@ -84,6 +83,7 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
       }
 
       const position = await readDevicePosition();
+      if (generation !== requestGeneration.current) return null;
 
       const coords = {
         latitude: position.coords.latitude,
@@ -94,6 +94,7 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
       setState({ status: 'granted', coords });
       return coords;
     } catch (error) {
+      if (generation !== requestGeneration.current) return null;
       // Browsers without geolocation, simulators with no fix set, airplane
       // mode. None of these should look like a bug to the user.
       setState({

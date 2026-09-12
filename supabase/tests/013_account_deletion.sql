@@ -18,11 +18,12 @@ insert into public.session_posts(id,session_id,author_id,caption) values
 insert into public.session_media(post_id,uploader_id,kind,storage_path) values
 ('95555555-5555-4555-8555-555555555557','95555555-5555-4555-8555-555555555555','image','95555555-5555-4555-8555-555555555555/95555555-5555-4555-8555-555555555557/owner.jpg'),
 ('95555555-5555-4555-8555-555555555558','95555555-5555-4555-8555-555555555556','image','95555555-5555-4555-8555-555555555556/95555555-5555-4555-8555-555555555558/peer.jpg');
+insert into storage.objects(bucket_id,name,owner_id) values ('session-media','95555555-5555-4555-8555-555555555556/95555555-5555-4555-8555-555555555558/unattached.jpg','95555555-5555-4555-8555-555555555556');
 select set_config('request.jwt.claims','{"role":"service_role"}',true);
 set local role service_role;
 select lives_ok($$select public.prepare_account_deletion('95555555-5555-4555-8555-555555555555')$$,'Server can stage deletion');
 select lives_ok($$select public.prepare_account_deletion('95555555-5555-4555-8555-555555555555')$$,'Staging can be retried');
-select is((select count(*)::integer from public.account_deletion_objects('95555555-5555-4555-8555-555555555555')),2,'Manifest retains owner and peer files from hosted sessions');
+select is((select count(*)::integer from public.account_deletion_objects('95555555-5555-4555-8555-555555555555')),3,'Manifest retains owner, peer and unattached files from hosted sessions');
 select is((select count(*)::integer from public.run_sessions where id=current_setting('test.delete_session')::uuid),0,'Hosted session metadata is removed');
 reset role;
 select set_config('request.jwt.claims','{"sub":"95555555-5555-4555-8555-555555555555","role":"authenticated"}',true);

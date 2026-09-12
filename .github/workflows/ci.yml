@@ -15,24 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
-      # Build-only placeholders. PR checks never contact a backend or need secrets.
-      - name: Configure offline builds
-        run: |
-          cat > .env <<'ENV'
-          EXPO_PUBLIC_SUPABASE_URL=https://build-only.supabase.co
-          EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_build_placeholder
-          VITE_SUPABASE_URL=https://build-only.supabase.co
-          VITE_SUPABASE_ANON_KEY=sb_publishable_build_placeholder
-          ENV
-      - run: npm run check
-      - run: npm run test:maps
-      - run: node scripts/test-database.mjs --self-test
-      - run: npm run build
-      - run: node scripts/check-client-bundles.mjs --self-test
-      - run: node scripts/check-client-bundles.mjs
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check formatting
+        run: npm run format:check
+      - name: Lint applications
+        run: npm run lint
+      - name: Check TypeScript
+        run: npm run typecheck
+      - name: Unit tests and tooling checks
+        run: npm test
+      - name: Build apps and scan client bundles
+        run: npm run check:bundles
+        # Public placeholders only. Automatic CI never needs a backend or secrets.
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://build-only.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_build_placeholder
+          VITE_SUPABASE_URL: https://build-only.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_build_placeholder
+          EXPO_NO_TELEMETRY: '1'

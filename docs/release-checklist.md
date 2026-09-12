@@ -1,7 +1,7 @@
 # Remaining release work
 
 Hosted auth/onboarding, venue and pin sessions, organizer controls, chat, media
-uploads, Geoapify search, Mapbox web/native maps and live presence are implemented.
+uploads, Geoapify search, Mapbox web/native maps, live presence and account deletion are implemented.
 The app is still in testing. This file tracks unfinished work only.
 
 ## Accounts and deployment
@@ -19,9 +19,7 @@ The app is still in testing. This file tracks unfinished work only.
 ## Product and safety
 
 - [ ] Add reporting, user blocking and admin content removal.
-- [ ] Implement account deletion and media retention/deletion behavior.
 - [ ] Publish privacy policy, support contact, terms and community guidelines.
-- [ ] Verify the venue submission and admin review workflow; see [admin-app.md](admin-app.md). Automated OSM importing is deferred.
 
 Spontaneous sessions publish immediately. Review canonical venues and handle
 reported session content afterward; do not require session preapproval.
@@ -39,5 +37,5 @@ reported session content afterward; do not require session preapproval.
       are unit-tested; a full pgTAP run on the separate project remains unverified.
 - [ ] Configure the protected `database-tests` GitHub environment and run the
       manual hosted database/schema drift workflow. PR CI requires no backend.
-- [ ] Before release, run `npm run check`, `npm run test:maps`,
+- [ ] Before release, run `npm run check` (including map and tooling tests),
       `npm run check:bundles`, hosted database checks and the explicit social smoke test.

@@ -1279,6 +1279,7 @@ export type Database = {
         Returns: string
       }
       leave_run_session: { Args: { p_session_id: string }; Returns: undefined }
+      lock_session_media_upload: { Args: { p_path: string }; Returns: boolean }
       nearby_venues: {
         Args: {
           p_lat: number

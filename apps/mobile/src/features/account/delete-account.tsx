@@ -44,7 +44,8 @@ export function DeleteAccount({ userId }: { userId: string }) {
         });
         if (result.error) {
           const context = (result.error as { context?: Response }).context;
-          const details = context ? await context.json().catch(() => null) : null;
+          const details =
+            typeof context?.json === 'function' ? await context.json().catch(() => null) : null;
           throw new Error(details?.error ?? 'Could not finish deletion. Please retry.');
         }
         if (result.data?.deleted) {

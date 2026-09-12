@@ -18,14 +18,24 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Validate manual workflow configuration
+        run: |
+          for key in SUPABASE_TEST_PROJECT_REF SUPABASE_TEST_DB_URL SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Configure $key in the database-tests environment before running this optional workflow."
+              exit 1
+            fi
+          done
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - name: Install locked dependencies
+        run: npm ci
       # The isolated test project must already contain migrations and fixtures.
-      - run: npm run db:test
+      - name: Run isolated hosted pgTAP tests
+        run: npm run db:test
       - name: Check generated types against hosted app schema
         run: |
           npm run db:types

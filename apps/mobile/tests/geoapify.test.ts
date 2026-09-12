@@ -1,11 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Complements `scripts/tests/geoapify.mjs`, which already covers response
- * validation, the auth/quota error messages and a pre-aborted signal (and can
- * hit the live API with `--live`). What is asserted here is the part that only
- * a fake clock reaches: input bounds, request spacing, and cancellation while a
- * search is waiting for its slot.
+ * Covers the search adapter with stubbed responses and a fake clock: input and
+ * response validation, provider failures, caching, request spacing and cancellation.
+ * This suite never contacts Geoapify or requires a provider key.
  *
  * Spacing matters because the Geoapify credits are shared across the whole
  * project. It throttles one app instance, not aggregate traffic — but a search
@@ -143,6 +141,16 @@ describe('request spacing', () => {
 });
 
 describe('cancellation', () => {
+  it('rejects an already-aborted signal even when the result is cached', async () => {
+    const { searchPlaces, calls } = await loadAdapter('test-key');
+    await searchPlaces('Charlottetown');
+    const controller = new AbortController();
+    controller.abort();
+    await expect(searchPlaces('Charlottetown', controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+    expect(calls).toHaveLength(1);
+  });
   it('rejects as AbortError when cancelled while waiting for its slot', async () => {
     const { searchPlaces, calls } = await loadAdapter('test-key');
     await searchPlaces('Charlottetown');
@@ -161,5 +169,42 @@ describe('cancellation', () => {
     const controller = new AbortController();
     await searchPlaces('Charlottetown', controller.signal);
     expect(calls[0].signal).toBe(controller.signal);
+  });
+});
+
+describe('provider responses', () => {
+  it('discards malformed places and retains valid coordinates', async () => {
+    const { searchPlaces } = await loadAdapter(
+      'test-key',
+      () =>
+        new Response(
+          JSON.stringify({
+            results: [
+              { formatted: 'Charlottetown, PEI', lat: 46.24, lon: -63.13, place_id: 'pei' },
+              { formatted: 'bad', lat: null, lon: 0 },
+              { formatted: 'bad', lat: 91, lon: 0 },
+              null,
+            ],
+          }),
+        ),
+    );
+    const results = await searchPlaces('Charlottetown');
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ latitude: 46.24, longitude: -63.13 });
+  });
+
+  it.each([
+    [401, /authenticate/],
+    [403, /authenticate/],
+    [429, /usage limit/],
+    [500, /unavailable/],
+  ])('explains provider HTTP %s failures', async (status, message) => {
+    const { searchPlaces } = await loadAdapter('test-key', () => new Response('{}', { status }));
+    await expect(searchPlaces('Toronto')).rejects.toThrow(message);
+  });
+
+  it('rejects an unexpected response shape', async () => {
+    const { searchPlaces } = await loadAdapter('test-key', () => new Response('{}'));
+    await expect(searchPlaces('Toronto')).rejects.toThrow(/unexpected response/);
   });
 });

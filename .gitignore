@@ -9,6 +9,7 @@ build/
 .expo/
 web-build/
 *.tsbuildinfo
+coverage/
 
 # Environment — never commit real credentials.
 # .env.example is the committed template and MUST stay tracked.

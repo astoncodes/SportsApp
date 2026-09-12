@@ -19,19 +19,16 @@ import type { MapCoordinate, MapRegion } from '../../components/map/types';
 import { AppText, Button, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
 import { searchPlaces } from '../geocoding/geoapify';
 import type { GeocodingResult } from '../geocoding/geoapify';
-import { DEFAULT_CENTER, useNearbyVenues, useSports } from '../venues/api';
+import { useNearbyVenues, useSports } from '../venues/api';
 import { useSession } from '../../providers/auth-context';
 import { elevation, radius, space, usePalette, useThemeName } from '../../theme';
 import type { IconName } from '../../components/ui/primitives';
 import { useSubmitVenue } from './api';
-
-const DEFAULT_REGION: MapRegion = {
-  ...DEFAULT_CENTER,
-  latitudeDelta: 0.025,
-  longitudeDelta: 0.025,
-};
+import { useDeviceLocation } from '../location/use-device-location';
+import { useRequiredLocation } from '../location/required-location';
 
 export function VenueSubmissionForm() {
+  const initialLocation = useRequiredLocation();
   const colors = usePalette();
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
@@ -39,14 +36,20 @@ export function VenueSubmissionForm() {
   const { session } = useSession();
   const sports = useSports();
   const submitVenue = useSubmitVenue();
+  const { state: locationState, request: requestLocation } = useDeviceLocation();
 
   const [query, setQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodingResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const searchController = useRef<AbortController | null>(null);
-  const [pin, setPin] = useState<MapCoordinate>(DEFAULT_CENTER);
-  const [region, setRegion] = useState<MapRegion>(DEFAULT_REGION);
+  const [pin, setPin] = useState<MapCoordinate>(initialLocation);
+  const [pinSelected, setPinSelected] = useState(false);
+  const [region, setRegion] = useState<MapRegion>({
+    ...initialLocation,
+    latitudeDelta: 0.025,
+    longitudeDelta: 0.025,
+  });
   const [address, setAddress] = useState('');
   const [duplicateCheckAccepted, setDuplicateCheckAccepted] = useState(false);
   const [name, setName] = useState('');
@@ -83,8 +86,19 @@ export function VenueSubmissionForm() {
 
   function movePin(coordinate: MapCoordinate) {
     setPin(coordinate);
+    setPinSelected(true);
     setRegion((current) => ({ ...current, ...coordinate }));
     setDuplicateCheckAccepted(false);
+  }
+
+  async function useCurrentLocation() {
+    const coordinate = await requestLocation();
+    if (coordinate) {
+      movePin(coordinate);
+      setAddress('');
+      setQuery('');
+      setSearchResults([]);
+    }
   }
 
   async function handleSearch() {
@@ -115,6 +129,10 @@ export function VenueSubmissionForm() {
     setValidationError(null);
     if (!session) {
       router.push('/sign-in');
+      return;
+    }
+    if (!pinSelected) {
+      setValidationError('Choose the venue location on the map before submitting.');
       return;
     }
     if (name.trim().length < 2) {
@@ -154,6 +172,11 @@ export function VenueSubmissionForm() {
           </AppText>
         )}
         <Button label="Back to map" onPress={() => router.replace('/')} />
+        <Button
+          label="View your submissions"
+          variant="outline"
+          onPress={() => router.replace('/venue-submission')}
+        />
       </View>
     );
   }
@@ -163,6 +186,9 @@ export function VenueSubmissionForm() {
       style={{ flex: 1, backgroundColor: colors.background }}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{
+        width: '100%',
+        maxWidth: 720,
+        alignSelf: 'center',
         padding: space.lg,
         paddingBottom: insets.bottom + space.xxl,
         gap: space.lg,
@@ -171,9 +197,24 @@ export function VenueSubmissionForm() {
       <View style={{ gap: space.xs }}>
         <AppText variant="display">Add a venue</AppText>
         <AppText variant="body" tone="muted">
-          Search once, then confirm the exact spot by moving the pin.
+          Search for a place or use your location, then adjust the pin to the exact spot.
         </AppText>
       </View>
+
+      <Button
+        label="Use my location"
+        icon="crosshairs-gps"
+        onPress={useCurrentLocation}
+        loading={locationState.status === 'requesting'}
+      />
+      {locationState.status === 'denied' && (
+        <AppText tone="alert">Enable location services and allow access to continue.</AppText>
+      )}
+      {locationState.status === 'unavailable' && (
+        <AppText tone="alert">
+          Could not find your location. Try again, search for a place or tap the map.
+        </AppText>
+      )}
 
       <View style={styles.searchRow}>
         <TextInput
@@ -248,8 +289,9 @@ export function VenueSubmissionForm() {
         />
       </View>
       <AppText variant="caption" tone="muted">
-        Tap the map or drag the pin to adjust it. Final coordinates: {pin.latitude.toFixed(6)},{' '}
-        {pin.longitude.toFixed(6)}
+        {pinSelected
+          ? `Tap the map or drag the pin to adjust it. Final coordinates: ${pin.latitude.toFixed(6)}, ${pin.longitude.toFixed(6)}`
+          : 'Tap the map, search for a place or use your location to confirm the venue’s exact spot.'}
       </AppText>
 
       {!duplicateCheckAccepted ? (
@@ -264,7 +306,10 @@ export function VenueSubmissionForm() {
           {nearby.isPending ? (
             <ActivityIndicator color={colors.live} />
           ) : nearby.isError ? (
-            <AppText tone="alert">Nearby venues could not be checked. Try again.</AppText>
+            <View style={{ gap: space.sm }}>
+              <AppText tone="alert">Nearby venues could not be checked. Try again.</AppText>
+              <Button label="Retry nearby venues" onPress={() => void nearby.refetch()} />
+            </View>
           ) : nearby.data?.length ? (
             nearby.data.map((venue) => (
               <PressableSurface
@@ -292,7 +337,7 @@ export function VenueSubmissionForm() {
           <Button
             label="None of these — continue"
             onPress={() => setDuplicateCheckAccepted(true)}
-            disabled={nearby.isPending || nearby.isError}
+            disabled={!pinSelected || nearby.isPending || nearby.isError}
           />
         </View>
       ) : (
@@ -376,6 +421,7 @@ export function VenueSubmissionForm() {
             icon={session ? 'send' : 'login'}
             onPress={handleSubmit}
             loading={submitVenue.isPending}
+            disabled={locationState.status === 'requesting'}
           />
         </View>
       )}
