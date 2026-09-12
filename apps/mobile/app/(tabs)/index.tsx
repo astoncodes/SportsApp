@@ -1,7 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import VenueMap from '../../src/components/map/venue-map';
@@ -17,6 +17,7 @@ import {
   PressableSurface,
   sportIcon,
 } from '../../src/components/ui/primitives';
+import { BrandMark } from '../../src/components/ui/brand';
 import { ResultsSheet } from '../../src/components/ui/results-sheet';
 import { usePublicSessionPins } from '../../src/features/community/api';
 import { useAccountSports } from '../../src/features/account/api';
@@ -40,6 +41,8 @@ export default function LiveScreen() {
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 900;
 
   const { session } = useSession();
   const userId = session?.user.id;
@@ -88,7 +91,7 @@ export default function LiveScreen() {
     latitude: visibleCenter.latitude,
     longitude: visibleCenter.longitude,
     sportIds: selectedSportIds,
-    enabled: !locating,
+    enabled: true,
   });
 
   const activeSports = useMemo(
@@ -135,10 +138,12 @@ export default function LiveScreen() {
       keyExtractor={(venue) => venue.venue_id}
       contentContainerStyle={{
         padding: space.lg,
-        paddingBottom: insets.bottom + 120,
+        paddingBottom: space.xl,
         gap: space.md,
       }}
       showsVerticalScrollIndicator={false}
+      refreshing={venues.isRefetching}
+      onRefresh={() => void venues.refetch()}
       renderItem={({ item }) => (
         <VenueCard venue={item} onPress={() => router.push(`/venue/${item.venue_id}`)} />
       )}
@@ -153,7 +158,10 @@ export default function LiveScreen() {
           <EmptyState
             icon="wifi-off"
             title="Can't reach Drop In"
-            body="Check your connection and pull to try again. Anything already loaded stays on the map."
+            body="Check your connection, then try again."
+            action={
+              <Button label="Try again" variant="soft" onPress={() => void venues.refetch()} />
+            }
           />
         ) : (
           <EmptyState
@@ -224,11 +232,17 @@ export default function LiveScreen() {
       )}
 
       {/* --- Floating chrome. Glass here, never on the content cards. --- */}
-      <View style={[styles.chrome, { paddingTop: insets.top + space.sm }]} pointerEvents="box-none">
+      <View
+        style={[
+          styles.chrome,
+          { paddingTop: insets.top + space.sm, maxWidth: isWide ? 460 : undefined },
+        ]}
+        pointerEvents="box-none"
+      >
         <AdaptiveGlassSurface style={styles.header} borderRadius={radius.xl}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <AppText variant="heading">Drop In</AppText>
+              <BrandMark size={30} />
               <View style={styles.regionRow}>
                 <MaterialCommunityIcons name="map-marker" size={12} color={colors.textMuted} />
                 <AppText variant="caption" tone="muted">
@@ -236,11 +250,17 @@ export default function LiveScreen() {
                     ? 'Finding your location…'
                     : locationState.status === 'granted'
                       ? 'Near you'
-                      : 'Charlottetown · default area'}
+                      : 'Charlottetown, PEI'}
                 </AppText>
               </View>
             </View>
 
+            <IconButton
+              icon="plus"
+              label="Create session"
+              tone="live"
+              onPress={() => router.push('/run/new')}
+            />
             <IconButton
               icon="map-marker-plus-outline"
               label="Add a venue"
@@ -248,14 +268,6 @@ export default function LiveScreen() {
             />
           </View>
 
-          <View style={{ paddingHorizontal: space.lg, paddingTop: space.sm }}>
-            <Button
-              label="Create session/run"
-              icon="plus"
-              size="sm"
-              onPress={() => router.push('/run/new')}
-            />
-          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -263,8 +275,7 @@ export default function LiveScreen() {
             accessibilityLabel="Filter by sport"
           >
             <Chip
-              label="All sports"
-              icon="filter-variant"
+              label="All"
               selected={selectedSportIds.length === 0}
               onPress={() => setFilterOverride({ userId: userId ?? null, sportIds: [] })}
             />
@@ -282,7 +293,13 @@ export default function LiveScreen() {
       </View>
 
       {/* --- Right-hand floating controls --- */}
-      <View style={[styles.sideControls, { top: insets.top + 178 }]} pointerEvents="box-none">
+      <View
+        style={[
+          styles.sideControls,
+          { top: insets.top + 144, right: isWide && view === 'map' ? 432 : space.md },
+        ]}
+        pointerEvents="box-none"
+      >
         <AdaptiveGlassSurface borderRadius={radius.pill} style={styles.controlStack}>
           <PressableSurface
             onPress={() => setView(view === 'map' ? 'list' : 'map')}
@@ -321,7 +338,7 @@ export default function LiveScreen() {
       {/* Permission denial is explained where it happened, and never blocks
           browsing — the map keeps working, it just cannot centre on you. */}
       {(locationState.status === 'denied' || locationState.status === 'unavailable') && (
-        <View style={[styles.notice, { top: insets.top + 178 }]} pointerEvents="box-none">
+        <View style={[styles.notice, { top: insets.top + 144 }]} pointerEvents="box-none">
           <AdaptiveGlassSurface style={{ padding: space.md }} borderRadius={radius.lg}>
             <AppText variant="caption">
               {locationState.status === 'denied'
@@ -348,16 +365,12 @@ export default function LiveScreen() {
                 ? `${liveCount} active now`
                 : `${venues.data?.length ?? 0} nearby`
           }
-          subtitle={
-            liveCount > 0
-              ? 'Sorted by activity, then distance'
-              : 'Nothing live — here is what is closest'
-          }
+          subtitle={liveCount > 0 ? 'Find your next game' : 'Your next game starts here'}
         >
           {listContent}
         </ResultsSheet>
       ) : (
-        <View style={{ flex: 1, paddingTop: insets.top + 176 }}>{listContent}</View>
+        <View style={{ flex: 1, paddingTop: insets.top + 208 }}>{listContent}</View>
       )}
     </View>
   );
@@ -386,5 +399,5 @@ const styles = StyleSheet.create({
   controlStack: { alignItems: 'center' },
   controlButton: { width: 46, height: 46, alignItems: 'center', justifyContent: 'center' },
   controlDivider: { height: StyleSheet.hairlineWidth, width: 28 },
-  notice: { position: 'absolute', left: space.md, right: 76, zIndex: 19, marginTop: 108 },
+  notice: { position: 'absolute', left: space.md, right: 76, zIndex: 19, marginTop: 56 },
 });

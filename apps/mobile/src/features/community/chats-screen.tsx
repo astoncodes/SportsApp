@@ -1,10 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SportBadge } from '../../components/ui/brand';
 import { EmptyState, Skeleton } from '../../components/ui/activity';
-import { AppText, Button, PressableSurface, sportIcon } from '../../components/ui/primitives';
+import { AppText, Button, PressableSurface } from '../../components/ui/primitives';
 import { relativeTime, timeOfDay, weekdayName } from '../../lib/format';
 import { useSession } from '../../providers/auth-context';
 import { elevation, radius, space, usePalette } from '../../theme';
@@ -18,11 +19,27 @@ export function ChatsScreen() {
   const chats = useJoinedSessions(session?.user.id);
 
   return (
-    <View
-      style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top + space.lg }}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{
+        paddingTop: insets.top + space.lg,
+        paddingBottom: space.xxl,
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
+      }}
+      refreshControl={
+        session ? (
+          <RefreshControl
+            refreshing={chats.isRefetching}
+            onRefresh={() => void chats.refetch()}
+            tintColor={colors.live}
+          />
+        ) : undefined
+      }
     >
       <View style={styles.heading}>
-        <AppText variant="display">Session chats</AppText>
+        <AppText variant="display">Chats</AppText>
         <AppText variant="body" tone="muted">
           Private conversations for sessions you joined.
         </AppText>
@@ -43,12 +60,24 @@ export function ChatsScreen() {
           />
           <Button label="Sign in" onPress={() => router.push('/sign-in')} />
         </View>
+      ) : chats.isError ? (
+        <EmptyState
+          icon="wifi-off"
+          title="Could not load chats"
+          body="Check your connection and try again."
+          action={<Button label="Try again" onPress={() => void chats.refetch()} />}
+        />
       ) : chats.data?.length ? (
         <View style={styles.list}>
           {chats.data.map((chat) => (
             <PressableSurface
               key={chat.id}
-              onPress={() => router.push(`/session/${chat.id}`)}
+              onPress={() =>
+                router.push({
+                  pathname: '/session/[sessionId]',
+                  params: { sessionId: chat.id, tab: 'chat' },
+                })
+              }
               accessibilityLabel={`Open ${chat.title} chat`}
             >
               <View
@@ -58,13 +87,7 @@ export function ChatsScreen() {
                   elevation.card,
                 ]}
               >
-                <View style={[styles.icon, { backgroundColor: colors.liveSoft }]}>
-                  <MaterialCommunityIcons
-                    name={sportIcon(chat.sportSlug)}
-                    size={24}
-                    color={colors.live}
-                  />
-                </View>
+                <SportBadge slug={chat.sportSlug} size={48} />
                 <View style={{ flex: 1, gap: 3 }}>
                   <AppText variant="heading" numberOfLines={1}>
                     {chat.cancelled_at ? `Cancelled · ${chat.title}` : chat.title}
@@ -91,12 +114,12 @@ export function ChatsScreen() {
           <EmptyState
             icon="calendar-heart"
             title="No session chats yet"
-            body="Join a run from Scheduled and its private chat will appear here."
+            body="Join a session in Discover and its private chat will appear here."
           />
-          <Button label="Browse sessions" onPress={() => router.push('/scheduled')} />
+          <Button label="Browse sessions" onPress={() => router.push('/feed')} />
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }
 

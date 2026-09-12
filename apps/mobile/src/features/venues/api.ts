@@ -53,10 +53,10 @@ export function useNearbyVenues(params: {
       [...sportIds].sort().join(','),
     ],
     enabled,
-    // Live counts go stale quickly; Realtime invalidation is the primary
-    // refresh path and this is the safety net behind it.
+    // Mutation invalidation refreshes own actions; polling reconciles other
+    // players and expiry without depending on a cleanup job.
     staleTime: 20_000,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
     queryFn: async (): Promise<NearbyVenue[]> => {
       const { data, error } = await supabase.rpc('nearby_venues', {
         p_lat: latitude,
@@ -73,6 +73,7 @@ export function useNearbyVenues(params: {
 export function useVenueDetail(venueId: string | undefined) {
   return useQuery({
     queryKey: ['venue', venueId],
+    refetchInterval: 15_000,
     enabled: Boolean(venueId),
     staleTime: 20_000,
     queryFn: async (): Promise<VenueDetail | null> => {
@@ -88,7 +89,7 @@ export function useVenueActivity(venueId: string | undefined) {
     queryKey: ['venue-activity', venueId],
     enabled: Boolean(venueId),
     staleTime: 15_000,
-    refetchInterval: 45_000,
+    refetchInterval: 15_000,
     queryFn: async (): Promise<VenueActivity[]> => {
       const { data, error } = await supabase.rpc('venue_activity', { p_venue_id: venueId! });
       if (error) throw error;

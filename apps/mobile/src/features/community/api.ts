@@ -55,16 +55,18 @@ async function sessionLabels(sessions: RunSession[]) {
   };
 }
 
-export function useCommunityFeed(regionId?: number) {
+export function useCommunityFeed(regionId?: number, sessionId?: string) {
   return useQuery({
-    queryKey: ['community-feed', regionId ?? 'all'],
+    queryKey: ['community-feed', regionId ?? 'all', sessionId ?? 'all'],
     staleTime: 30_000,
     queryFn: async (): Promise<FeedPost[]> => {
-      const postsResult = await supabase
+      let postsQuery = supabase
         .from('session_posts')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
+      if (sessionId) postsQuery = postsQuery.eq('session_id', sessionId);
+      const postsResult = await postsQuery;
       if (postsResult.error) throw postsResult.error;
       const posts = postsResult.data ?? [];
       if (posts.length === 0) return [];

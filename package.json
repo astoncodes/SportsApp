@@ -17,7 +17,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test:js",
-    "test:js": "npm run test --workspaces --if-present",
+    "test:js": "npm run test --workspaces --if-present && node scripts/tests/account-deletion-handler.mjs",
     "db:test": "node scripts/test-database.mjs",
     "db:types": "node scripts/generate-database-types.mjs",
     "db:admin": "node scripts/grant-admin.mjs",
@@ -26,9 +26,16 @@
     "mobile": "npm run start --workspace apps/mobile",
     "admin": "npm run dev --workspace apps/admin",
     "test:supabase": "node scripts/tests/session-social.mjs",
-    "test:maps": "node scripts/tests/geoapify.mjs"
+    "test:maps": "node scripts/tests/geoapify.mjs",
+    "test:browser": "node scripts/tests/browser-public.mjs",
+    "test:browser:supabase": "node scripts/tests/browser-social.mjs",
+    "test:presence": "node scripts/tests/live-presence.mjs"
   },
   "devDependencies": {
+    "metro": "0.84.5",
+    "metro-config": "0.84.5",
+    "metro-transform-worker": "0.84.5",
+    "playwright": "^1.63.0",
     "postgres": "^3.4.9",
     "prettier": "^3.9.6",
     "supabase": "^2.114.0",

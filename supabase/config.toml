@@ -6,3 +6,5 @@ enabled = true
 
 [db.seed]
 enabled = false
+[functions.delete-account]
+verify_jwt = true

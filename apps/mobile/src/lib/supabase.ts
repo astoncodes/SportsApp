@@ -16,9 +16,12 @@ import { secureStorage } from './secure-storage';
  * with `npm run db:types`. This client holds a normal user session and is
  * subject to RLS exactly like any other caller.
  */
+export const AUTH_STORAGE_KEY = `sb-${new URL(env.supabaseUrl).hostname.split('.')[0]}-auth-token`;
+
 export const supabase = createClient<Database>(env.supabaseUrl, env.supabaseAnonKey, {
   auth: {
     storage: secureStorage,
+    storageKey: AUTH_STORAGE_KEY,
     persistSession: true,
     autoRefreshToken: true,
     flowType: 'pkce',

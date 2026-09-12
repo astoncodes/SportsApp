@@ -32,3 +32,6 @@ apps/mobile/android/
 # Logs
 *.log
 npm-debug.log*
+
+# Local browser test screenshots and artifacts
+/test-results/

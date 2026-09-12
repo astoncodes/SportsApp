@@ -15,6 +15,7 @@ export function AdminConsole() {
   const [page, setPage] = useState<Page>('Overview');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('pending');
+  const [venueFilter, setVenueFilter] = useState<'all' | 'active' | 'unverified'>('all');
   const [region, setRegion] = useState('');
   const [offset, setOffset] = useState(0);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
@@ -77,7 +78,7 @@ export function AdminConsole() {
     },
   });
   const venues = useQuery({
-    queryKey: ['admin', 'venues', search, region, offset],
+    queryKey: ['admin', 'venues', search, region, offset, venueFilter],
     enabled: page === 'Venues',
     queryFn: async () => {
       let q = supabase
@@ -88,6 +89,8 @@ export function AdminConsole() {
         .range(offset, offset + 24);
       if (region) q = q.eq('region_id', Number(region));
       if (search.trim()) q = q.ilike('name', `%${search.trim()}%`);
+      if (venueFilter !== 'all') q = q.eq('status', 'active');
+      if (venueFilter === 'unverified') q = q.eq('verification_state', 'unverified');
       const result = await q;
       if (result.error) throw result.error;
       return result;
@@ -110,6 +113,7 @@ export function AdminConsole() {
     setPage(next);
     setOffset(0);
     setSearch('');
+    setVenueFilter('all');
     setCandidate(null);
     setVenue(null);
   }
@@ -198,6 +202,7 @@ export function AdminConsole() {
                     onClick={() => {
                       navigate(i % 2 === 0 ? 'Review queue' : 'Venues');
                       setStatus(i === 2 ? 'possible_duplicate' : 'pending');
+                      if (i === 1 || i === 3) setVenueFilter(i === 3 ? 'unverified' : 'active');
                     }}
                   >
                     <span>{title}</span>
@@ -264,6 +269,20 @@ export function AdminConsole() {
                 </option>
               ))}
             </select>
+            {page === 'Venues' && (
+              <select
+                aria-label="Venue filter"
+                value={venueFilter}
+                onChange={(event) => {
+                  setVenueFilter(event.target.value as 'all' | 'active' | 'unverified');
+                  setOffset(0);
+                }}
+              >
+                <option value="all">All venues</option>
+                <option value="active">Active venues</option>
+                <option value="unverified">Unverified active venues</option>
+              </select>
+            )}
             {page === 'Review queue' && (
               <select
                 aria-label="Review status"
@@ -517,6 +536,12 @@ function Panel({
       <section
         ref={ref}
         className="detail-panel"
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.stopPropagation();
+            close();
+          }
+        }}
         role="dialog"
         aria-modal="true"
         aria-label={title}

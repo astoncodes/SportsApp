@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { readDevicePosition } from '../location/read-device-position';
 import { useRef, useState } from 'react';
 import { Image, Linking, Platform, TextInput, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -60,38 +61,20 @@ export function SessionPhotoComposer({
         'Allow location access to confirm you are within 500 metres of this session.',
       );
     }
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const position = await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () =>
-              reject(
-                new Error(
-                  'Location is taking too long. Move somewhere with a clear signal and try again.',
-                ),
-              ),
-            20000,
-          );
-        }),
-      ]);
-      if (position.mocked) throw new Error('Turn off simulated location to share session photos.');
-      if (position.coords.accuracy === null)
-        throw new Error(
-          'Could not confirm location accuracy. Enable precise location and try again.',
-        );
-      const location = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy,
-        observedAt: new Date(position.timestamp).toISOString(),
-      };
-      await checkSessionPhotoLocation(sessionId, location);
-      return location;
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
+    const position = await readDevicePosition();
+    if (position.mocked) throw new Error('Turn off simulated location to share session photos.');
+    if (position.coords.accuracy === null)
+      throw new Error(
+        'Could not confirm location accuracy. Enable precise location and try again.',
+      );
+    const location = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      observedAt: new Date(position.timestamp).toISOString(),
+    };
+    await checkSessionPhotoLocation(sessionId, location);
+    return location;
   }
 
   async function choose(camera: boolean) {

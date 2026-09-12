@@ -1,5 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
 
 import { usePalette } from '../../src/theme';
 
@@ -17,6 +19,8 @@ import { usePalette } from '../../src/theme';
  */
 export default function TabsLayout() {
   const colors = usePalette();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   return (
     <Tabs
@@ -24,7 +28,16 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.live,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          height: 64 + insets.bottom,
+          paddingTop: 6,
+          paddingHorizontal: Math.max(0, (width - 900) / 2),
+          paddingBottom: Math.max(insets.bottom, 8),
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarItemStyle: { maxWidth: 180 },
       }}
     >
       <Tabs.Screen
@@ -33,7 +46,7 @@ export default function TabsLayout() {
           title: 'Live',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? 'lightning-bolt' : 'lightning-bolt-outline'}
+              name={focused ? 'map-marker' : 'map-marker-outline'}
               size={size}
               color={color}
             />
@@ -43,10 +56,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="feed"
         options={{
-          title: 'Feed',
+          title: 'Discover',
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? 'view-dashboard' : 'view-dashboard-outline'}
+              name={focused ? 'compass' : 'compass-outline'}
               size={size}
               color={color}
             />

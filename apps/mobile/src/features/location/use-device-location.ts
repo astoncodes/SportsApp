@@ -1,11 +1,15 @@
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
+import { readDevicePosition } from './read-device-position';
 
 export type LocationState =
   | { status: 'idle' }
   | { status: 'requesting' }
-  | { status: 'granted'; coords: { latitude: number; longitude: number; accuracyM: number | null } }
+  | {
+      status: 'granted';
+      coords: { latitude: number; longitude: number; accuracyM: number | null; observedAt: string };
+    }
   | { status: 'denied'; canAskAgain: boolean }
   | { status: 'unavailable'; message: string };
 
@@ -37,7 +41,7 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
       try {
         const watcher = await Location.watchPositionAsync(
           { accuracy: Location.Accuracy.Balanced, distanceInterval: 5, timeInterval: 3000 },
-          ({ coords }) => {
+          ({ coords, timestamp }) => {
             if (!disposed && current === generation)
               setState({
                 status: 'granted',
@@ -45,6 +49,7 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
                   latitude: coords.latitude,
                   longitude: coords.longitude,
                   accuracyM: coords.accuracy ?? null,
+                  observedAt: new Date(timestamp).toISOString(),
                 },
               });
           },
@@ -78,14 +83,13 @@ export function useDeviceLocation({ live = false }: { live?: boolean } = {}) {
         return null;
       }
 
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const position = await readDevicePosition();
 
       const coords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         accuracyM: position.coords.accuracy ?? null,
+        observedAt: new Date(position.timestamp).toISOString(),
       };
       setState({ status: 'granted', coords });
       return coords;

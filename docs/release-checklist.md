@@ -1,17 +1,17 @@
 # Remaining release work
 
 Hosted auth/onboarding, venue and pin sessions, organizer controls, chat, media
-uploads, Geoapify search/web maps and native map configuration are implemented.
+uploads, Geoapify search, Mapbox web/native maps and live presence are implemented.
 The app is still in testing. This file tracks unfinished work only.
 
 ## Accounts and deployment
 
 - [ ] Configure custom SMTP and a verified sender for users outside the Supabase team.
 - [ ] Configure production Auth site URL and exact web/native callbacks.
-- [ ] Set up EAS development/preview/production profiles, signing and builds.
+- [ ] Link the EAS project, configure signing and build the committed development/preview/production profiles; see [build-release.md](build-release.md).
 - [ ] Add public app configuration to build/deployment environments; local `.env`
       does not provision those environments.
-- [ ] Add Android package/signing SHA-1 restrictions to the Google Maps key.
+- [ ] Configure Mapbox token restrictions appropriate for native and hosted web clients.
 - [ ] Configure appropriate Geoapify key restrictions and monitor shared credits.
 - [ ] Deploy web/admin over HTTPS and provision authorized admins.
 - [ ] Complete Apple/Google developer accounts, listings and store disclosures.
@@ -22,7 +22,6 @@ The app is still in testing. This file tracks unfinished work only.
 - [ ] Implement account deletion and media retention/deletion behavior.
 - [ ] Publish privacy policy, support contact, terms and community guidelines.
 - [ ] Verify the venue submission and admin review workflow; see [admin-app.md](admin-app.md). Automated OSM importing is deferred.
-- [ ] Finish or hide live check-in/arrival placeholders for the first release.
 
 Spontaneous sessions publish immediately. Review canonical venues and handle
 reported session content afterward; do not require session preapproval.

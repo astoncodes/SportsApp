@@ -84,6 +84,7 @@ export function AdaptiveGlassSurface({
       <GlassView
         style={[shape, style]}
         glassEffectStyle={glassStyle}
+        colorScheme={isDark ? 'dark' : 'light'}
         // Native glass adapts to whatever sits behind it; telling it the
         // current scheme keeps our text contrast predictable over a map that
         // may be much lighter or darker than the surface itself.

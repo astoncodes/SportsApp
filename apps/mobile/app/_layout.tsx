@@ -2,6 +2,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { usePalette, useIsDark } from '../src/theme';
+
 import { AppProviders } from '../src/providers';
 
 /**
@@ -11,14 +13,24 @@ import { AppProviders } from '../src/providers';
  * (docs/architecture.md §Repository scaffold). Browsing is allowed without an
  * account, so there is no redirect to sign-in here — the gate goes on the
  * actions that require identity (checking in, posting a run, submitting a
- * venue), which arrive in Phase 3.
+ * venue).
  */
 export default function RootLayout() {
+  const colors = usePalette();
+  const dark = useIsDark();
   return (
     <SafeAreaProvider>
       <AppProviders>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false }}>
+        <StatusBar style={dark ? 'light' : 'dark'} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="(auth)" options={{ presentation: 'modal' }} />
           <Stack.Screen name="venue/[venueId]" options={{ headerShown: true, title: 'Venue' }} />

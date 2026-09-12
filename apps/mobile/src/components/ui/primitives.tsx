@@ -1,11 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, TextStyle, ViewStyle } from 'react-native';
 
 import { useReduceMotion } from '../../lib/accessibility';
-import { motion, radius, space, typeScale, usePalette } from '../../theme';
+import { motion, radius, space, sportColor, typeScale, usePalette } from '../../theme';
 
 export type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -108,6 +108,7 @@ export function PressableSurface({
   onPress,
   style,
   disabled,
+  selected,
   accessibilityLabel,
   accessibilityHint,
   accessibilityRole = 'button',
@@ -116,6 +117,7 @@ export function PressableSurface({
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   disabled?: boolean;
+  selected?: boolean;
   accessibilityLabel?: string;
   accessibilityHint?: string;
   accessibilityRole?: 'button' | 'link' | 'tab';
@@ -131,7 +133,10 @@ export function PressableSurface({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!disabled, selected }}
+      aria-disabled={!!disabled}
+      aria-pressed={accessibilityRole === 'button' ? selected : undefined}
+      aria-selected={accessibilityRole === 'tab' ? selected : undefined}
       style={({ pressed }) => [
         { opacity: disabled ? 0.5 : reduceMotion && pressed ? 0.75 : 1 },
         style,
@@ -180,14 +185,16 @@ export function Button({
     alert: { solid: colors.alert, soft: colors.alertSoft, text: colors.alert },
   }[tone];
 
-  const heights = { sm: 36, md: 46, lg: 54 };
+  const heights = { sm: 44, md: 48, lg: 56 };
   const background =
     variant === 'solid' ? toneMap.solid : variant === 'soft' ? toneMap.soft : 'transparent';
   const foreground =
     variant === 'solid'
       ? tone === 'neutral'
         ? colors.textInverse
-        : '#FFFFFF'
+        : tone === 'live'
+          ? colors.textInverse
+          : '#FFFFFF'
       : variant === 'soft'
         ? toneMap.text
         : colors.text;
@@ -204,15 +211,17 @@ export function Button({
         style={[
           styles.button,
           {
-            height: heights[size],
+            minHeight: heights[size],
+            paddingVertical: space.sm,
             backgroundColor: background,
-            borderRadius: radius.pill,
+            borderRadius: radius.md,
             borderWidth: variant === 'outline' ? 1 : 0,
             borderColor: colors.borderStrong,
             paddingHorizontal: size === 'sm' ? space.md : space.xl,
           },
         ]}
       >
+        {loading && <ActivityIndicator color={foreground} size="small" />}
         {icon && !loading && (
           <MaterialCommunityIcons name={icon} size={size === 'sm' ? 16 : 19} color={foreground} />
         )}
@@ -223,7 +232,7 @@ export function Button({
             { color: foreground, fontWeight: '700' },
           ]}
         >
-          {loading ? 'Working…' : label}
+          {label}
         </Text>
       </View>
     </PressableSurface>
@@ -237,6 +246,7 @@ export function IconButton({
   size = 44,
   tone = 'neutral',
   style,
+  disabled,
 }: {
   icon: IconName;
   onPress?: () => void;
@@ -244,10 +254,16 @@ export function IconButton({
   size?: number;
   tone?: 'neutral' | 'live';
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
 }) {
   const colors = usePalette();
   return (
-    <PressableSurface onPress={onPress} accessibilityLabel={label} style={style}>
+    <PressableSurface
+      onPress={onPress}
+      accessibilityLabel={label}
+      style={style}
+      disabled={disabled}
+    >
       <View
         style={{
           // Never below 44: anything smaller is a target people miss.
@@ -299,7 +315,7 @@ export function Chip({
   }[tone];
 
   const background = selected ? colors.live : tones.bg;
-  const foreground = selected ? '#FFFFFF' : tones.fg;
+  const foreground = selected ? colors.textInverse : tones.fg;
 
   const content = (
     <View
@@ -310,11 +326,21 @@ export function Chip({
           borderRadius: radius.pill,
           paddingVertical: compact ? 5 : 9,
           paddingHorizontal: compact ? space.sm : space.lg,
-          minHeight: onPress ? 40 : undefined,
+          minHeight: onPress ? 44 : undefined,
         },
       ]}
     >
-      {icon && <MaterialCommunityIcons name={icon} size={compact ? 13 : 16} color={foreground} />}
+      {icon && (
+        <MaterialCommunityIcons
+          name={icon}
+          size={compact ? 13 : 16}
+          color={
+            !selected && Object.values(SPORT_ICONS).includes(icon)
+              ? sportColor(Object.keys(SPORT_ICONS).find((key) => SPORT_ICONS[key] === icon))
+              : foreground
+          }
+        />
+      )}
       <Text
         maxFontSizeMultiplier={1.3}
         style={[
@@ -333,10 +359,9 @@ export function Chip({
     <PressableSurface
       onPress={onPress}
       accessibilityLabel={label}
+      selected={selected}
       accessibilityRole="button"
-      accessibilityHint={
-        selected ? 'Selected. Tap to remove filter.' : 'Tap to filter by this sport.'
-      }
+      accessibilityHint={selected ? 'Selected' : 'Select this option'}
     >
       {content}
     </PressableSurface>
@@ -351,6 +376,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   chip: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,

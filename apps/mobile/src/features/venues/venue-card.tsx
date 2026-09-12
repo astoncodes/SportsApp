@@ -1,6 +1,7 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { StyleSheet, View } from 'react-native';
 
+import { SportBadge } from '../../components/ui/brand';
 import { ActivityBadge, ConditionChip } from '../../components/ui/activity';
 import { AppText, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
 import {
@@ -52,8 +53,9 @@ export function VenueCard({ venue, onPress }: { venue: NearbyVenue; onPress: () 
         ]}
       >
         <View style={styles.headerRow}>
+          <SportBadge slug={venue.sport_slugs?.[0]} size={48} />
           <View style={{ flex: 1, gap: 4 }}>
-            <AppText variant="heading" numberOfLines={1}>
+            <AppText variant="bodyStrong" numberOfLines={2}>
               {venue.name}
             </AppText>
 
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: StyleSheet.hairlineWidth,
     padding: space.lg,
-    gap: space.md,
+    gap: space.sm,
   },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },

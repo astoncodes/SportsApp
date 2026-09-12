@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AppText, Button } from '../../components/ui/primitives';
@@ -15,24 +15,37 @@ type Status =
 export function SignInForm() {
   const colors = usePalette();
   const [email, setEmail] = useState('');
+  const sending = useRef(false);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
 
   async function sendLink() {
     const normalized = email.trim().toLocaleLowerCase('en-CA');
-    if (!normalized) return;
-
+    if (sending.current) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      setStatus({
+        kind: 'error',
+        message: 'Enter a valid email address to get your sign-in link.',
+      });
+      return;
+    }
+    sending.current = true;
     setStatus({ kind: 'sending' });
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalized,
-      options: {
-        emailRedirectTo: authRedirectUrl(),
-        shouldCreateUser: true,
-      },
-    });
-
-    setStatus(
-      error ? { kind: 'error', message: error.message } : { kind: 'sent', email: normalized },
-    );
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalized,
+        options: { emailRedirectTo: authRedirectUrl(), shouldCreateUser: true },
+      });
+      setStatus(
+        error ? { kind: 'error', message: error.message } : { kind: 'sent', email: normalized },
+      );
+    } catch {
+      setStatus({
+        kind: 'error',
+        message: 'Could not connect. Check your connection and try again.',
+      });
+    } finally {
+      sending.current = false;
+    }
   }
 
   if (status.kind === 'sent') {
@@ -55,8 +68,10 @@ export function SignInForm() {
 
   return (
     <View style={{ gap: space.md }}>
+      <AppText variant="bodyStrong">Your email address</AppText>
       <TextInput
         value={email}
+        editable={status.kind !== 'sending'}
         onChangeText={setEmail}
         onSubmitEditing={sendLink}
         autoCapitalize="none"
@@ -74,7 +89,7 @@ export function SignInForm() {
       />
       {status.kind === 'error' && <AppText tone="alert">{status.message}</AppText>}
       <Button
-        label="Email me a sign-in link"
+        label="Continue with email"
         icon="email-fast-outline"
         onPress={sendLink}
         loading={status.kind === 'sending'}

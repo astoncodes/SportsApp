@@ -16,13 +16,13 @@
  */
 
 const brand = {
-  fieldInk: '#08130F',
-  fieldGreen: '#17C77B',
+  fieldInk: '#102B26',
+  fieldGreen: '#21BC89',
   electricLime: '#C8F56A',
   electricBlue: '#3B82F6',
   gameAmber: '#FFB547',
   liveCoral: '#FF5D5D',
-  offWhite: '#F5F7F2',
+  offWhite: '#F7F7F2',
 } as const;
 
 export type ThemeName = 'light' | 'dark';
@@ -68,19 +68,19 @@ export const palettes: Record<ThemeName, Palette> = {
     background: brand.offWhite,
     backgroundElevated: '#FFFFFF',
     surface: '#FFFFFF',
-    surfaceMuted: '#ECEFE8',
+    surfaceMuted: '#EEF0EA',
     surfaceInverse: brand.fieldInk,
-    border: '#DDE2D8',
+    border: '#E3E7DF',
     borderStrong: '#C3CBBB',
 
     text: brand.fieldInk,
-    textMuted: '#54655C',
-    textFaint: '#86958C',
+    textMuted: '#5E706A',
+    textFaint: '#6D7D76',
     textInverse: brand.offWhite,
 
-    live: '#0E9E5F',
-    liveSoft: '#DFF6EA',
-    liveText: '#075B36',
+    live: '#00865C',
+    liveSoft: '#E4F3EB',
+    liveText: '#006B49',
     soon: '#B9720A',
     soonSoft: '#FFF0D6',
     soonText: '#7A4A00',
@@ -98,7 +98,7 @@ export const palettes: Record<ThemeName, Palette> = {
     mapOverlayInk: brand.fieldInk,
   },
   dark: {
-    background: brand.fieldInk,
+    background: '#0D1C18',
     backgroundElevated: '#101E19',
     surface: '#132520',
     surfaceMuted: '#1B322B',
@@ -108,7 +108,7 @@ export const palettes: Record<ThemeName, Palette> = {
 
     text: '#E8F0EA',
     textMuted: '#9DB3A8',
-    textFaint: '#6F8A7D',
+    textFaint: '#8DA69B',
     textInverse: brand.fieldInk,
 
     live: brand.fieldGreen,
@@ -153,8 +153,8 @@ export const radius = {
 } as const;
 
 export const typeScale = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: '800' as const, letterSpacing: -0.8 },
-  title: { fontSize: 24, lineHeight: 30, fontWeight: '700' as const, letterSpacing: -0.4 },
+  display: { fontSize: 36, lineHeight: 41, fontWeight: '800' as const, letterSpacing: -1.3 },
+  title: { fontSize: 28, lineHeight: 34, fontWeight: '700' as const, letterSpacing: -0.8 },
   heading: { fontSize: 18, lineHeight: 24, fontWeight: '700' as const, letterSpacing: -0.2 },
   body: { fontSize: 15, lineHeight: 21, fontWeight: '400' as const },
   bodyStrong: { fontSize: 15, lineHeight: 21, fontWeight: '600' as const },
@@ -183,7 +183,7 @@ export const motion = {
 export const elevation = {
   card: {
     shadowColor: '#08130F',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.035,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
@@ -196,3 +196,18 @@ export const elevation = {
     elevation: 8,
   },
 } as const;
+
+/** The same sport identity is used on filters, cards and both map renderers. */
+export const sportColors: Record<string, string> = {
+  basketball: '#F26A21',
+  soccer: '#00865C',
+  volleyball: '#7951D4',
+  pickleball: '#D69A00',
+  tennis: '#2378DD',
+  football: '#E3454D',
+  'ice-hockey': '#397EA0',
+};
+
+export function sportColor(slug: string | null | undefined): string {
+  return (slug && sportColors[slug]) || '#226B56';
+}

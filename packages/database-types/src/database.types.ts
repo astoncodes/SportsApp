@@ -21,6 +21,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          started_at?: string
+          user_id: string
+        }
+        Update: {
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      account_storage_deletions: {
+        Row: {
+          account_id: string
+          requested_at: string
+          storage_path: string
+        }
+        Insert: {
+          account_id: string
+          requested_at?: string
+          storage_path: string
+        }
+        Update: {
+          account_id?: string
+          requested_at?: string
+          storage_path?: string
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -1083,6 +1116,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      account_accepts_writes: { Args: never; Returns: boolean }
+      account_deletion_objects: {
+        Args: { p_user_id: string }
+        Returns: {
+          storage_path: string
+        }[]
+      }
+      ack_account_deletion_objects: {
+        Args: { p_paths: string[]; p_user_id: string }
+        Returns: undefined
+      }
       admin_review_candidate: {
         Args: {
           p_candidate_id: string
@@ -1106,6 +1150,10 @@ export type Database = {
         Returns: undefined
       }
       can_post_to_session: { Args: { p_session_id: string }; Returns: boolean }
+      cancel_arrival_intent: {
+        Args: { p_intent_id: string }
+        Returns: undefined
+      }
       cancel_run_session: { Args: { p_session_id: string }; Returns: undefined }
       check_session_photo_location: {
         Args: {
@@ -1116,6 +1164,20 @@ export type Database = {
           p_session_id: string
         }
         Returns: undefined
+      }
+      create_check_in: {
+        Args: {
+          p_accuracy: number
+          p_duration_minutes?: number
+          p_lat: number
+          p_lon: number
+          p_note?: string
+          p_observed_at: string
+          p_party_size?: number
+          p_sport_id: number
+          p_venue_id: string
+        }
+        Returns: string
       }
       create_run: {
         Args: {
@@ -1187,6 +1249,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      end_check_in: { Args: { p_check_in_id: string }; Returns: undefined }
+      extend_check_in: {
+        Args: { p_check_in_id: string; p_minutes?: number }
+        Returns: string
+      }
       find_duplicate_candidates: {
         Args: {
           p_exclude_venue_id?: string
@@ -1239,6 +1306,10 @@ export type Database = {
           verification_state: Database["public"]["Enums"]["verification_state"]
         }[]
       }
+      prepare_account_deletion: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       run_attendance: {
         Args: { p_series_ids: string[] }
         Returns: {
@@ -1249,6 +1320,10 @@ export type Database = {
           run_series_id: string
           session_id: string
         }[]
+      }
+      set_arrival_intent: {
+        Args: { p_eta_minutes?: number; p_sport_id: number; p_venue_id: string }
+        Returns: string
       }
       set_run_attendance: {
         Args: {

@@ -52,11 +52,16 @@ export function ComingInPhase({ phase, children }: { phase: string; children: Re
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.xl,
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    flexGrow: 1,
     gap: spacing.md,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
+    letterSpacing: -1,
     fontWeight: '700',
   },
   body: {

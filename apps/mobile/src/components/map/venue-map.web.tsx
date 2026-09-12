@@ -1,26 +1,29 @@
 import 'mapbox-gl/dist/mapbox-gl.css';
 import mapboxgl from 'mapbox-gl';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { useEffect, useRef } from 'react';
 import { sportIcon } from '../ui/primitives';
-import { palettes } from '../../theme/tokens';
+import { palettes, sportColor } from '../../theme/tokens';
 import { env } from '../../lib/env';
 import type { MapMarker, VenueMapProps } from './types';
 
 function markerHtml(marker: MapMarker, scheme: 'light' | 'dark'): string {
   const colors = palettes[scheme];
   const session = marker.kind === 'session';
-  const fill = session ? '#E63746' : '#536477';
+  const fill = sportColor(marker.sportSlug);
   const ring = marker.selected ? colors.text : '#FFFFFF';
   const glyph =
-    MaterialCommunityIcons.glyphMap[session ? sportIcon(marker.sportSlug) : 'map-marker-outline'];
+    MaterialCommunityIcons.glyphMap[
+      marker.sportSlug ? sportIcon(marker.sportSlug) : 'map-marker-outline'
+    ];
   const badge =
     marker.count > 0
       ? `<span style="position:absolute;right:-3px;top:-4px;min-width:16px;height:16px;padding:0 3px;box-sizing:border-box;border-radius:8px;background:${colors.live};color:white;font:700 10px/16px system-ui;text-align:center;border:1px solid white">${Math.min(marker.count, 99)}</span>`
       : '';
   return `<div style="position:relative;width:48px;height:${session ? 56 : 44}px">
-    <div style="position:absolute;left:6px;top:6px;width:36px;height:36px;box-sizing:border-box;background:${fill};border:2px solid ${ring};border-radius:${session ? '50% 50% 3px 50%' : '10px'};transform:${session ? 'rotate(45deg)' : 'none'};box-shadow:0 3px 7px #18253340"></div>
+    <div style="position:absolute;left:6px;top:6px;width:36px;height:36px;box-sizing:border-box;background:${fill};border:2px solid ${ring};border-radius:${session ? '50% 50% 3px 50%' : '10px'};transform:${session ? 'rotate(45deg)' : 'none'};box-shadow:0 4px 10px #102B2640"></div>
     <span style="position:absolute;left:11px;top:11px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:${session ? '#FFFFFF' : 'transparent'};color:${session ? fill : '#FFFFFF'};font:20px '${MaterialCommunityIcons.getFontFamily()}';">&#${glyph};</span>
     ${badge}
   </div>`;
@@ -52,30 +55,15 @@ export default function VenueMap({
     const map = new mapboxgl.Map({
       container: containerRef.current,
       accessToken: env.mapboxAccessToken,
-      style: `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`,
+      minZoom: 2,
+      maxZoom: 19,
+      scrollZoom: true,
+      touchZoomRotate: true,
+      style: `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark-v11' : 'streets-v12'}`,
       center: [region.longitude, region.latitude],
       zoom: Math.log2(360 / Math.max(region.longitudeDelta, 0.0001)),
     });
     mapRef.current = map;
-    map.on('style.load', () => {
-      map.addSource('green-streets', { type: 'vector', url: 'mapbox://mapbox.mapbox-streets-v8' });
-      map.addLayer(
-        {
-          id: 'green-street-lines',
-          type: 'line',
-          source: 'green-streets',
-          'source-layer': 'road',
-          minzoom: 10,
-          layout: { 'line-cap': 'round', 'line-join': 'round' },
-          paint: {
-            'line-color': '#16A34A',
-            'line-opacity': 0.7,
-            'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 2, 18, 5],
-          },
-        },
-        map.getStyle()?.layers.find((layer) => layer.type === 'symbol')?.id,
-      );
-    });
     map.on('moveend', () => {
       const center = map.getCenter();
       const bounds = map.getBounds();
@@ -105,7 +93,7 @@ export default function VenueMap({
     if (appliedScheme.current === colorScheme) return;
     appliedScheme.current = colorScheme;
     mapRef.current?.setStyle(
-      `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`,
+      `mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark-v11' : 'streets-v12'}`,
       { diff: false, localFontFamily: undefined, localIdeographFontFamily: undefined },
     );
   }, [colorScheme]);
@@ -168,15 +156,17 @@ export default function VenueMap({
   }, [region.latitude, region.longitude, recenterRequest]);
 
   return (
-    <div
-      ref={containerRef}
-      role="application"
-      aria-label="Map of nearby venues. The same venues are listed below."
-      style={{ width: '100%', height: '100%', ...style }}
-    >
-      {!env.mapboxAccessToken && (
-        <p role="status">Map unavailable. You can still browse the venue list.</p>
-      )}
-    </div>
+    <View style={{ width: '100%', height: '100%', ...style }}>
+      <div
+        ref={containerRef}
+        role="application"
+        aria-label="Map of nearby venues. The same venues are listed below."
+        style={{ width: '100%', height: '100%' }}
+      >
+        {!env.mapboxAccessToken && (
+          <p role="status">Map unavailable. You can still browse the venue list.</p>
+        )}
+      </div>
+    </View>
   );
 }

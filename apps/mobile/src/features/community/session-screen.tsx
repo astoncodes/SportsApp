@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -28,10 +27,14 @@ import {
 } from './api';
 
 import { SessionPhotoComposer } from './session-photo-composer';
+import { MomentsFeed } from './feed-screen';
 import { SessionEditForm } from './session-edit-form';
 
 export function SessionScreen() {
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { sessionId, tab } = useLocalSearchParams<{ sessionId: string; tab?: string }>();
+  const [activeTab, setActiveTab] = useState<'details' | 'chat' | 'photos'>(
+    tab === 'chat' ? 'chat' : 'details',
+  );
   const colors = usePalette();
   const scheme = useThemeName();
   const insets = useSafeAreaInsets();
@@ -46,6 +49,13 @@ export function SessionScreen() {
   const join = useJoinSession();
   const send = useSendMessage(sessionId, session?.user.id ?? '');
   const [body, setBody] = useState('');
+  const scrollRef = useRef<ScrollView>(null);
+  const messageCount = messages.data?.length ?? 0;
+  useEffect(() => {
+    if (activeTab !== 'chat' || !messageCount) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 80);
+    return () => clearTimeout(timer);
+  }, [messageCount, activeTab]);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 15_000);
@@ -74,9 +84,9 @@ export function SessionScreen() {
   }
 
   function reportError(error: unknown) {
-    Alert.alert(
-      'Couldn’t complete that action',
-      error instanceof Error ? error.message : 'Please try again.',
+    setActionError(
+      (error as { message?: string })?.message ??
+        'Could not complete that action. Please try again.',
     );
   }
 
@@ -91,16 +101,15 @@ export function SessionScreen() {
         attendance,
       });
       await overview.refetch();
+      setActiveTab('chat');
     } catch (error) {
-      Alert.alert(
-        'Could not save response',
-        error instanceof Error ? error.message : 'Please try again.',
-      );
+      reportError(error);
     }
   }
 
   async function handleSend() {
-    if (!body.trim()) return;
+    if (!body.trim() || send.isPending) return;
+    setActionError('');
     await send.mutateAsync(body);
     setBody('');
   }
@@ -125,7 +134,8 @@ export function SessionScreen() {
         <EmptyState
           icon="calendar-remove"
           title="Session unavailable"
-          body="This session may have been cancelled or removed."
+          body="This session may have been removed, or your connection was interrupted."
+          action={<Button label="Back to Discover" onPress={() => router.replace('/feed')} />}
         />
       </View>
     );
@@ -146,15 +156,24 @@ export function SessionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
           paddingTop: insets.top + space.lg,
-          paddingBottom: item.isMember ? 110 : insets.bottom + space.xl,
+          paddingBottom: item.isMember && activeTab === 'chat' ? 110 : insets.bottom + space.xl,
+          width: '100%',
+          maxWidth: 760,
+          alignSelf: 'center',
         }}
       >
         <View style={styles.header}>
-          <IconButton icon="arrow-left" label="Go back" onPress={() => router.back()} />
+          <IconButton
+            icon="arrow-left"
+            label="Go back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/feed'))}
+          />
           <Chip label={item.sportName} compact />
-          <AppText variant="display">{item.title}</AppText>
+          <AppText variant={activeTab === 'details' ? 'display' : 'heading'}>{item.title}</AppText>
           <AppText variant="body" tone="muted">
             {item.venueName} · {weekdayName(item.starts_at)} at {timeOfDay(item.starts_at)}
           </AppText>
@@ -169,156 +188,187 @@ export function SessionScreen() {
           </View>
         </View>
 
-        {cancelled && (
-          <View style={styles.joinBlock}>
-            <AppText variant="heading">Session cancelled</AppText>
-            <AppText variant="body" tone="muted">
-              This session is no longer happening. Existing chat and posts are kept for reference.
-            </AppText>
+        <View
+          style={{
+            flexDirection: 'row',
+            paddingHorizontal: space.lg,
+            paddingTop: space.lg,
+            gap: space.sm,
+          }}
+        >
+          <Chip
+            label="Details"
+            selected={activeTab === 'details'}
+            onPress={() => setActiveTab('details')}
+          />
+          <Chip label="Chat" selected={activeTab === 'chat'} onPress={() => setActiveTab('chat')} />
+          <Chip
+            label="Photos"
+            selected={activeTab === 'photos'}
+            onPress={() => setActiveTab('photos')}
+          />
+        </View>
+        {!!actionError && (
+          <View accessibilityRole="alert" style={{ padding: space.lg }}>
+            <AppText tone="alert">{actionError}</AppText>
           </View>
         )}
+        {activeTab === 'details' && (
+          <View>
+            {cancelled && (
+              <View style={styles.joinBlock}>
+                <AppText variant="heading">Session cancelled</AppText>
+                <AppText variant="body" tone="muted">
+                  This session is no longer happening. Existing chat and posts are kept for
+                  reference.
+                </AppText>
+              </View>
+            )}
 
-        {!cancelled && item.isMember && (
-          <View style={styles.tools}>
-            <Button
-              label={item.attendance === 'going' ? 'Going ✓' : 'Going +1'}
-              onPress={() => handleJoin('going')}
-              disabled={join.isPending}
-            />
-            <Button
-              label={item.attendance === 'maybe' ? 'Maybe ✓' : 'Maybe'}
-              tone="neutral"
-              onPress={() => handleJoin('maybe')}
-              disabled={join.isPending}
-            />
-          </View>
-        )}
-        <View style={{ padding: space.lg, gap: space.sm }}>
-          {item.isOrganizer && !cancelled && !ended && (
-            <>
-              {new Date(item.starts_at).getTime() > now && (
+            {!cancelled && !ended && item.isMember && (
+              <View style={styles.tools}>
                 <Button
-                  label="Edit session"
-                  icon="pencil"
+                  label={item.attendance === 'going' ? 'Going ✓' : 'Going +1'}
+                  onPress={() => handleJoin('going')}
+                  disabled={join.isPending}
+                />
+                <Button
+                  label={item.attendance === 'maybe' ? 'Maybe ✓' : 'Maybe'}
+                  tone="neutral"
+                  onPress={() => handleJoin('maybe')}
+                  disabled={join.isPending}
+                />
+              </View>
+            )}
+            <View style={{ padding: space.lg, gap: space.sm }}>
+              {item.isOrganizer && !cancelled && !ended && (
+                <>
+                  {new Date(item.starts_at).getTime() > now && (
+                    <Button
+                      label="Edit session"
+                      icon="pencil"
+                      tone="neutral"
+                      variant="soft"
+                      disabled={busy}
+                      onPress={() => {
+                        setEditing(!editing);
+                        setConfirmAction(null);
+                      }}
+                    />
+                  )}
+                  <Button
+                    label="Cancel session"
+                    icon="calendar-remove"
+                    tone="neutral"
+                    variant="soft"
+                    disabled={busy}
+                    onPress={() => {
+                      setConfirmAction('cancel');
+                      setEditing(false);
+                      setActionError('');
+                    }}
+                  />
+                </>
+              )}
+              {item.isMember && !cancelled && (!item.isOrganizer || cancelled || ended) && (
+                <Button
+                  label="Leave session"
+                  icon="exit-to-app"
                   tone="neutral"
                   variant="soft"
                   disabled={busy}
                   onPress={() => {
-                    setEditing(!editing);
-                    setConfirmAction(null);
+                    setConfirmAction('leave');
+                    setActionError('');
                   }}
                 />
               )}
-              <Button
-                label="Cancel session"
-                icon="calendar-remove"
-                tone="neutral"
-                variant="soft"
-                disabled={busy}
-                onPress={() => {
-                  setConfirmAction('cancel');
-                  setEditing(false);
-                  setActionError('');
-                }}
-              />
-            </>
-          )}
-          {item.isMember && !cancelled && (!item.isOrganizer || cancelled || ended) && (
-            <Button
-              label="Leave session"
-              icon="exit-to-app"
-              tone="neutral"
-              variant="soft"
-              disabled={busy}
-              onPress={() => {
-                setConfirmAction('leave');
-                setActionError('');
-              }}
-            />
-          )}
-          {confirmAction && (
-            <>
-              <AppText variant="body">
-                {confirmAction === 'cancel'
-                  ? 'Cancel this occurrence for everyone? Other weeks stay scheduled. This cannot be undone.'
-                  : 'Leave this session? You will lose chat access. Your existing messages and posts will remain.'}
-              </AppText>
-              {actionError ? (
-                <View accessibilityRole="alert">
-                  <AppText variant="body">{actionError}</AppText>
-                </View>
-              ) : null}
-              <Button
-                label={confirmAction === 'cancel' ? 'Yes, cancel session' : 'Yes, leave session'}
-                loading={busy}
-                onPress={() => void confirmControl()}
-              />
-              <Button
-                label="Keep session"
-                tone="neutral"
-                variant="soft"
-                disabled={busy}
-                onPress={() => setConfirmAction(null)}
-              />
-            </>
-          )}
-        </View>
-        {editing && item.isOrganizer && !cancelled && (
-          <SessionEditForm
-            item={item}
-            pending={controls.edit.isPending}
-            onSave={controls.edit.mutateAsync}
-            onClose={() => setEditing(false)}
-          />
-        )}
-
-        {item.latitude !== null && item.longitude !== null && (
-          <View style={{ padding: space.lg, gap: space.sm }}>
-            <View
-              style={{
-                height: 180,
-                position: 'relative',
-                borderRadius: radius.md,
-                overflow: 'hidden',
-              }}
-            >
-              <VenueMap
-                colorScheme={scheme}
-                region={{
-                  latitude: item.latitude,
-                  longitude: item.longitude,
-                  latitudeDelta: 0.012,
-                  longitudeDelta: 0.012,
-                }}
-                markers={[
-                  {
-                    id: item.id,
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    label: item.venueName,
-                    sportSlug: item.sportSlug,
-                    count: 0,
-                    isLive: false,
-                    isPending: true,
-                    kind: 'session' as const,
-                  },
-                ]}
-              />
+              {confirmAction && (
+                <>
+                  <AppText variant="body">
+                    {confirmAction === 'cancel'
+                      ? 'Cancel this occurrence for everyone? Other weeks stay scheduled. This cannot be undone.'
+                      : 'Leave this session? You will lose chat access. Your existing messages and posts will remain.'}
+                  </AppText>
+                  {actionError ? (
+                    <View accessibilityRole="alert">
+                      <AppText variant="body">{actionError}</AppText>
+                    </View>
+                  ) : null}
+                  <Button
+                    label={
+                      confirmAction === 'cancel' ? 'Yes, cancel session' : 'Yes, leave session'
+                    }
+                    loading={busy}
+                    onPress={() => void confirmControl()}
+                  />
+                  <Button
+                    label="Keep session"
+                    tone="neutral"
+                    variant="soft"
+                    disabled={busy}
+                    onPress={() => setConfirmAction(null)}
+                  />
+                </>
+              )}
             </View>
-            <Button
-              label="Directions to meeting spot"
-              icon="directions"
-              tone="neutral"
-              variant="soft"
-              onPress={() => {
-                void Linking.openURL(
-                  `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}&dir_action=navigate`,
-                ).catch(reportError);
-              }}
-            />
+            {editing && item.isOrganizer && !cancelled && (
+              <SessionEditForm
+                item={item}
+                pending={controls.edit.isPending}
+                onSave={controls.edit.mutateAsync}
+                onClose={() => setEditing(false)}
+              />
+            )}
+
+            {item.latitude !== null && item.longitude !== null && (
+              <View style={{ padding: space.lg, gap: space.sm }}>
+                <View
+                  style={{
+                    height: 180,
+                    position: 'relative',
+                    borderRadius: radius.md,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <VenueMap
+                    colorScheme={scheme}
+                    region={{
+                      latitude: item.latitude,
+                      longitude: item.longitude,
+                      latitudeDelta: 0.012,
+                      longitudeDelta: 0.012,
+                    }}
+                    markers={[
+                      {
+                        id: item.id,
+                        latitude: item.latitude,
+                        longitude: item.longitude,
+                        label: item.venueName,
+                        sportSlug: item.sportSlug,
+                        count: 0,
+                        isLive: false,
+                        isPending: true,
+                        kind: 'session' as const,
+                      },
+                    ]}
+                  />
+                </View>
+                <Button
+                  label="Directions to meeting spot"
+                  icon="directions"
+                  tone="neutral"
+                  variant="soft"
+                  onPress={() => {
+                    void Linking.openURL(
+                      `https://www.google.com/maps/dir/?api=1&destination=${item.latitude},${item.longitude}&dir_action=navigate`,
+                    ).catch(reportError);
+                  }}
+                />
+              </View>
+            )}
           </View>
         )}
-
         {!item.isMember ? (
           !cancelled && !ended ? (
             <View style={styles.joinBlock}>
@@ -337,7 +387,7 @@ export function SessionScreen() {
           ) : null
         ) : (
           <>
-            {!cancelled && (
+            {activeTab === 'photos' && !cancelled && (
               <View style={styles.tools}>
                 <SessionPhotoComposer
                   sessionId={sessionId}
@@ -346,53 +396,57 @@ export function SessionScreen() {
                 />
               </View>
             )}
-            <View style={styles.messages}>
-              <AppText variant="heading">Session chat</AppText>
-              {messages.isError ? (
-                <EmptyState
-                  icon="alert-circle-outline"
-                  title="Couldn’t load chat"
-                  body={messages.error.message}
-                />
-              ) : messages.isPending ? (
-                <Skeleton height={180} />
-              ) : messages.data?.length ? (
-                messages.data.map((message) => {
-                  const mine = message.user_id === session?.user.id;
-                  return (
-                    <View
-                      key={message.id}
-                      style={[styles.messageRow, mine && { alignItems: 'flex-end' }]}
-                    >
-                      <AppText variant="micro" tone="muted">
-                        {mine ? 'You' : message.authorName} · {relativeTime(message.created_at)}
-                      </AppText>
+            {activeTab === 'photos' && <MomentsFeed sessionId={sessionId} />}
+            {activeTab === 'chat' && (
+              <View style={styles.messages}>
+                <AppText variant="heading">Session chat</AppText>
+                {messages.isError ? (
+                  <EmptyState
+                    icon="alert-circle-outline"
+                    title="Couldn’t load chat"
+                    body={messages.error.message}
+                    action={<Button label="Try again" onPress={() => void messages.refetch()} />}
+                  />
+                ) : messages.isPending ? (
+                  <Skeleton height={180} />
+                ) : messages.data?.length ? (
+                  messages.data.map((message) => {
+                    const mine = message.user_id === session?.user.id;
+                    return (
                       <View
-                        style={[
-                          styles.bubble,
-                          { backgroundColor: mine ? colors.live : colors.surfaceMuted },
-                        ]}
+                        key={message.id}
+                        style={[styles.messageRow, mine && { alignItems: 'flex-end' }]}
                       >
-                        <AppText variant="body" tone={mine ? 'inverse' : 'default'}>
-                          {message.body}
+                        <AppText variant="micro" tone="muted">
+                          {mine ? 'You' : message.authorName} · {relativeTime(message.created_at)}
                         </AppText>
+                        <View
+                          style={[
+                            styles.bubble,
+                            { backgroundColor: mine ? colors.live : colors.surfaceMuted },
+                          ]}
+                        >
+                          <AppText variant="body" tone={mine ? 'inverse' : 'default'}>
+                            {message.body}
+                          </AppText>
+                        </View>
                       </View>
-                    </View>
-                  );
-                })
-              ) : (
-                <EmptyState
-                  icon="message-outline"
-                  title="Start the conversation"
-                  body="Ask what to bring or where everyone is meeting."
-                />
-              )}
-            </View>
+                    );
+                  })
+                ) : (
+                  <EmptyState
+                    icon="message-outline"
+                    title="Start the conversation"
+                    body="Ask what to bring or where everyone is meeting."
+                  />
+                )}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
 
-      {item.isMember && !cancelled && (
+      {item.isMember && !cancelled && activeTab === 'chat' && (
         <View
           style={[
             styles.composer,
@@ -405,6 +459,8 @@ export function SessionScreen() {
         >
           <TextInput
             value={body}
+            accessibilityLabel="Message the session"
+            editable={!send.isPending}
             onChangeText={setBody}
             placeholder="Message the session…"
             placeholderTextColor={colors.textFaint}
@@ -430,7 +486,7 @@ const styles = StyleSheet.create({
   loading: { flex: 1, padding: space.lg, gap: space.md },
   header: { paddingHorizontal: space.lg, gap: space.sm },
   joinBlock: { padding: space.lg, gap: space.lg },
-  tools: { paddingHorizontal: space.lg, paddingVertical: space.xl, alignItems: 'flex-start' },
+  tools: { paddingHorizontal: space.lg, paddingVertical: space.lg, gap: space.sm },
   messages: { paddingHorizontal: space.lg, gap: space.lg },
   messageRow: { gap: 4, alignItems: 'flex-start' },
   bubble: {

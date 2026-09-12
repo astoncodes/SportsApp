@@ -4,7 +4,8 @@ import { Animated, PanResponder, StyleSheet, View, useWindowDimensions } from 'r
 
 import { useReduceMotion } from '../../lib/accessibility';
 import { elevation, radius, space, usePalette } from '../../theme';
-import { AppText } from './primitives';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppText, IconButton } from './primitives';
 
 /**
  * The results panel over the map. Two snap points: peek and expanded.
@@ -32,11 +33,13 @@ export function ResultsSheet({
   const reduceMotion = useReduceMotion();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const isWide = windowWidth >= 900;
+  const insets = useSafeAreaInsets();
+  const availableHeight = windowHeight - 64 - insets.bottom;
 
   // Preserve more of the map on phones while keeping one venue card visible;
   // the higher expanded stop leaves room for the floating map header.
-  const peekOffset = Math.round(windowHeight * 0.6);
-  const expandedOffset = Math.round(windowHeight * 0.15);
+  const peekOffset = Math.round(availableHeight * 0.6);
+  const expandedOffset = Math.min(insets.top + 160, Math.round(availableHeight * 0.4));
 
   const [translateY] = useState(() => new Animated.Value(peekOffset));
   const [expanded, setExpanded] = useState(false);
@@ -107,6 +110,13 @@ export function ResultsSheet({
         )}
       </View>
       {headerRight}
+      {!isWide && (
+        <IconButton
+          icon={expanded ? 'chevron-down' : 'chevron-up'}
+          label={expanded ? 'Collapse venue list' : 'Expand venue list'}
+          onPress={() => snapTo(expanded ? peekOffset : expandedOffset)}
+        />
+      )}
     </View>
   );
 
@@ -130,7 +140,7 @@ export function ResultsSheet({
       style={[
         styles.sheet,
         {
-          height: windowHeight,
+          height: availableHeight - (expanded ? expandedOffset : peekOffset),
           backgroundColor: colors.background,
           borderColor: colors.border,
           transform: [{ translateY }],

@@ -5,6 +5,8 @@ export type AuthState = {
   session: Session | null;
   /** True until the stored session has been read back from the keychain. */
   isLoading: boolean;
+  /** Clear device state after the server confirms account deletion. */
+  clearDeletedAccount: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthState | null>(null);

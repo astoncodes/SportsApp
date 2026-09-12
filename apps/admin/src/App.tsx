@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useSession } from './lib/auth-context';
 import { supabase } from './lib/supabase';
 import { useIsAdmin } from './lib/use-is-admin';
+import { Brand, Icon } from './components/brand';
 
 /**
  * The protected shell.
@@ -15,10 +16,21 @@ import { useIsAdmin } from './lib/use-is-admin';
 export default function App() {
   const client = useQueryClient();
   const [signOutError, setSignOutError] = useState('');
+  const [signingOut, setSigningOut] = useState(false);
   async function signOut() {
-    const { error } = await supabase.auth.signOut();
-    if (error) setSignOutError(error.message);
-    else client.clear();
+    setSigningOut(true);
+    setSignOutError('');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) setSignOutError(error.message);
+      else client.clear();
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error ? error.message : 'Unable to sign out. Please try again.',
+      );
+    } finally {
+      setSigningOut(false);
+    }
   }
   const { session, isLoading: isSessionLoading } = useSession();
   const {
@@ -31,8 +43,10 @@ export default function App() {
 
   if (isSessionLoading) {
     return (
-      <main className="shell" role="status">
-        Loading your workspace…
+      <main className="loading-shell" role="status">
+        <Brand />
+        <span className="spinner" />
+        <p>Loading your workspace…</p>
       </main>
     );
   }
@@ -48,11 +62,18 @@ export default function App() {
   return (
     <main className="shell">
       <header className="bar">
-        <span>
-          Signed in as <strong>{session.user.email}</strong>
+        <span className="bar-title">
+          <Icon name="shield" /> Community workspace
         </span>
-        <button type="button" className="secondary" onClick={() => void signOut()}>
-          Sign out
+        <span className="account-email">{session.user.email}</span>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => void signOut()}
+          disabled={signingOut}
+        >
+          <Icon name="logout" />
+          {signingOut ? 'Signing out…' : 'Sign out'}
         </button>
       </header>
 
@@ -61,10 +82,16 @@ export default function App() {
           {signOutError}
         </p>
       )}
-      {isAdminPending && <div className="card">Checking access…</div>}
+      {isAdminPending && (
+        <div className="card access-card" role="status">
+          <span className="spinner" />
+          Checking workspace access…
+        </div>
+      )}
 
       {adminError && (
-        <div className="card error" role="alert">
+        <div className="card access-card error" role="alert">
+          <h1>Let’s try that again.</h1>
           {adminError.message}
           <button
             className="secondary"
@@ -77,8 +104,12 @@ export default function App() {
       )}
 
       {isAdmin === false && (
-        <div className="card">
-          <h1>No admin access</h1>
+        <div className="card access-card">
+          <span className="auth-symbol">
+            <Icon name="shield" />
+          </span>
+          <p className="eyebrow">COMMUNITY WORKSPACE</p>
+          <h1>Admin access required</h1>
           <p>
             This account does not have admin access yet. Once the project owner grants access, check
             again to open your workspace.

@@ -1,18 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import Mapbox, {
-  Camera,
-  LineLayer,
-  MapView,
-  PointAnnotation,
-  UserLocation,
-  VectorSource,
-} from '@rnmapbox/maps';
+import Mapbox, { Camera, MapView, PointAnnotation, UserLocation } from '@rnmapbox/maps';
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 
 import { env } from '../../lib/env';
-import { palettes } from '../../theme/tokens';
+import { palettes, sportColor } from '../../theme/tokens';
 import { AppText, sportIcon } from '../ui/primitives';
 import type { MapRegion, VenueMapProps } from './types';
 
@@ -33,6 +26,7 @@ export default function VenueMap({
   const colors = palettes[colorScheme];
   const [fontsLoaded] = useFonts(MaterialCommunityIcons.font);
   const camera = useRef<Camera>(null);
+  const zoom = useRef(Math.log2(360 / Math.max(region.longitudeDelta, 0.0001)));
   const lastReported = useRef<MapRegion | null>(null);
   const lastRequest = useRef(recenterRequest);
   const { latitude, longitude, latitudeDelta, longitudeDelta } = region;
@@ -52,7 +46,7 @@ export default function VenueMap({
       return;
     camera.current?.setCamera({
       centerCoordinate: [longitude, latitude],
-      zoomLevel: Math.log2(360 / Math.max(longitudeDelta, 0.0001)),
+      zoomLevel: requested ? zoom.current : Math.log2(360 / Math.max(longitudeDelta, 0.0001)),
       animationDuration: 250,
     });
   }, [latitude, longitude, latitudeDelta, longitudeDelta, recenterRequest]);
@@ -74,7 +68,11 @@ export default function VenueMap({
     <View style={[StyleSheet.absoluteFill, style]}>
       <MapView
         style={StyleSheet.absoluteFill}
-        styleURL={`mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark' : 'light'}-v11`}
+        styleURL={`mapbox://styles/mapbox/${colorScheme === 'dark' ? 'dark-v11' : 'streets-v12'}`}
+        zoomEnabled
+        onCameraChanged={(state) => {
+          zoom.current = state.properties.zoom;
+        }}
         compassEnabled={false}
         scaleBarEnabled={false}
         onPress={(event) => {
@@ -98,26 +96,13 @@ export default function VenueMap({
       >
         <Camera
           ref={camera}
+          minZoomLevel={2}
+          maxZoomLevel={19}
           defaultSettings={{
             centerCoordinate: [longitude, latitude],
             zoomLevel: Math.log2(360 / Math.max(longitudeDelta, 0.0001)),
           }}
         />
-        <VectorSource id="green-streets" url="mapbox://mapbox.mapbox-streets-v8">
-          <LineLayer
-            id="green-street-lines"
-            sourceLayerID="road"
-            belowLayerID="road-label-simple"
-            minZoomLevel={10}
-            style={{
-              lineColor: '#16A34A',
-              lineOpacity: 0.7,
-              lineCap: 'round',
-              lineJoin: 'round',
-              lineWidth: ['interpolate', ['linear'], ['zoom'], 10, 0.5, 14, 2, 18, 5],
-            }}
-          />
-        </VectorSource>
         {markers.map((marker) => (
           <PointAnnotation
             key={`${marker.id}/${marker.selected}/${marker.count}/${colorScheme}/${fontsLoaded}`}
@@ -142,7 +127,7 @@ export default function VenueMap({
                 style={[
                   styles.pin,
                   {
-                    backgroundColor: marker.kind === 'session' ? '#E63746' : '#536477',
+                    backgroundColor: sportColor(marker.sportSlug),
                     borderColor: marker.selected ? colors.text : '#FFFFFF',
                   },
                   marker.kind === 'session' && styles.sessionPin,
@@ -152,11 +137,9 @@ export default function VenueMap({
                 style={[styles.glyph, marker.kind === 'session' && { backgroundColor: '#FFFFFF' }]}
               >
                 <MaterialCommunityIcons
-                  name={
-                    marker.kind === 'session' ? sportIcon(marker.sportSlug) : 'map-marker-outline'
-                  }
+                  name={marker.sportSlug ? sportIcon(marker.sportSlug) : 'map-marker-outline'}
                   size={20}
-                  color={marker.kind === 'session' ? '#E63746' : '#FFFFFF'}
+                  color={marker.kind === 'session' ? sportColor(marker.sportSlug) : '#FFFFFF'}
                 />
               </View>
               {marker.count > 0 && (

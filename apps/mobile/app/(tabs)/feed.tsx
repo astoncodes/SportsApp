@@ -1,3 +1,3 @@
-import { FeedScreen } from '../../src/features/community/feed-screen';
+import { DiscoverScreen } from '../../src/features/community/discover-screen';
 
-export default FeedScreen;
+export default DiscoverScreen;

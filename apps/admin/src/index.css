@@ -1,4 +1,4 @@
-/* Internal review tool. Legible and quick to scan; not a design showcase. */
+/* Drop In: shared evergreen identity across the player and community workspaces. */
 
 :root {
   --bg: #f6f7f9;
@@ -66,7 +66,7 @@ body {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
+  border-radius: 1.25rem;
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -168,12 +168,12 @@ a {
 /* Operations workspace */
 :root {
   color-scheme: light;
-  --bg: #f5f6f8;
+  --bg: #f7f7f2;
   --surface: #fff;
-  --border: #e1e5e9;
-  --text: #192a31;
-  --muted: #65777e;
-  --accent: #126b55;
+  --border: #e3e7df;
+  --text: #102b26;
+  --muted: #5e706a;
+  --accent: #00865c;
   --accent-text: #fff;
   --danger: #b4232c;
 }
@@ -184,7 +184,7 @@ a {
 }
 .shell > .bar {
   padding: 12px 28px;
-  background: #fff;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   justify-content: flex-end;
 }
@@ -200,7 +200,7 @@ a {
 }
 .sidebar {
   padding: 30px 18px;
-  background: #fff;
+  background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -320,10 +320,10 @@ summary:focus-visible {
   align-items: flex-start;
   gap: 12px;
   padding: 22px;
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 18px;
   text-align: left;
 }
 .stat span {
@@ -374,7 +374,7 @@ summary:focus-visible {
 .filters input {
   flex: 1;
   min-width: 180px;
-  background: white;
+  background: var(--surface);
 }
 select,
 textarea {
@@ -383,7 +383,7 @@ textarea {
   padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
 }
 .table-card {
@@ -495,7 +495,7 @@ summary {
 .detail-panel {
   width: 560px;
   max-width: 100%;
-  background: white;
+  background: var(--surface);
   padding: 28px;
   overflow-y: auto;
   display: flex;
@@ -597,5 +597,346 @@ legend {
   }
   .detail-panel {
     padding: 20px;
+  }
+}
+
+/* Brand and sign-in */
+.icon {
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+}
+input,
+select {
+  min-height: 46px;
+}
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--accent);
+}
+.brand-wordmark {
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1.2px;
+  white-space: nowrap;
+}
+.brand-wordmark > span {
+  color: var(--accent);
+}
+.auth-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+}
+.auth-story {
+  position: relative;
+  padding: 44px 54px;
+  background: #0b4436;
+  color: white;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+.auth-story .brand-wordmark,
+.auth-story .brand-lockup {
+  color: white;
+}
+.auth-story .brand-mark g {
+  stroke: #0b4436;
+}
+.auth-story .brand-wordmark > span {
+  color: #a5d6aa;
+}
+.auth-story-copy {
+  position: relative;
+  z-index: 1;
+}
+.auth-story-copy .eyebrow {
+  color: #bdd6c9;
+}
+.auth-story h1 {
+  font-size: clamp(44px, 5vw, 72px);
+  line-height: 1.06;
+  letter-spacing: -3px;
+  margin: 20px 0 24px;
+}
+.auth-story h1 span {
+  color: #c8e4af;
+}
+.auth-story-copy > p:last-child {
+  line-height: 1.7;
+  color: #d0e1d8;
+}
+.auth-story-footer {
+  margin-top: auto;
+  color: #c1d8cd;
+  font-size: 13px;
+  position: relative;
+  z-index: 1;
+}
+.court-art {
+  height: 270px;
+  position: relative;
+  margin-top: 10px;
+}
+.court-lines {
+  position: absolute;
+  inset: 0 -25px -100px 0;
+  border: 2px solid #9bc3a660;
+  border-radius: 6px;
+  transform: rotate(-14deg);
+  background: #1c71534d;
+}
+.court-circle {
+  position: absolute;
+  top: 38%;
+  left: 32%;
+  width: 36%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid #9bc3a680;
+}
+.court-key {
+  position: absolute;
+  left: 27%;
+  width: 46%;
+  height: 90px;
+  border: 2px solid #9bc3a680;
+}
+.court-key-top {
+  top: 0;
+}
+.court-key-bottom {
+  bottom: 0;
+}
+.court-ball {
+  position: absolute;
+  top: 26px;
+  right: 20px;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: #ef9a59;
+  border: 2px solid #ac602b;
+  box-shadow: 0 16px 28px #052d2170;
+}
+.court-ball::before,
+.court-ball::after {
+  content: '';
+  position: absolute;
+  inset: 3px 20px;
+  border: 2px solid #854517;
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+.court-ball::after {
+  transform: rotate(65deg);
+}
+.auth-entry {
+  display: flex;
+  flex-direction: column;
+  padding: 44px clamp(24px, 5vw, 90px);
+  gap: 40px;
+}
+.auth-topline {
+  text-align: right;
+}
+.workspace-badge {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+.auth-form {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.auth-form h1 {
+  font-size: 36px;
+  margin: 0;
+  letter-spacing: -1.3px;
+}
+.auth-description {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.auth-symbol {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: #e4f3eb;
+  color: #00865c;
+}
+.auth-symbol .icon {
+  width: 25px;
+  height: 25px;
+}
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.auth-field input {
+  min-height: 54px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.auth-form > button {
+  min-height: 52px;
+  justify-content: space-between;
+  padding: 12px 20px;
+  font-size: 14px;
+}
+.auth-security {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.auth-security .icon {
+  width: 16px;
+}
+.auth-footer {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.bar-title {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.account-email {
+  overflow-wrap: anywhere;
+}
+.access-card {
+  margin: 10vh auto;
+  width: calc(100% - 40px);
+  max-width: 520px;
+  padding: 32px;
+}
+.loading-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+.spinner {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+@media (max-width: 760px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+  .auth-story {
+    padding: 24px;
+    gap: 28px;
+    min-height: 320px;
+  }
+  .auth-story h1 {
+    font-size: 44px;
+    letter-spacing: -2px;
+  }
+  .auth-story h1 br {
+    display: none;
+  }
+  .auth-story h1 span::before {
+    content: ' ';
+  }
+  .auth-story-copy {
+    max-width: 400px;
+  }
+  .court-art,
+  .auth-story-footer {
+    display: none;
+  }
+  .auth-entry {
+    padding: 28px 24px;
+    gap: 32px;
+  }
+  .auth-topline {
+    text-align: left;
+  }
+  .auth-form h1 {
+    font-size: 30px;
+  }
+  .bar-title {
+    width: 100%;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0d1c18;
+    --surface: #132520;
+    --border: #224037;
+    --text: #e8f0ea;
+    --muted: #9db3a8;
+    --accent: #21bc89;
+    --accent-text: #102b26;
+    --danger: #ff7777;
+  }
+  .nav-link.selected,
+  .welcome,
+  .auth-symbol {
+    background: #1b3f30;
+    color: #9be3ba;
+    border-color: #28533c;
+  }
+  .welcome p {
+    color: #b9d4c6;
+  }
+  th {
+    background: #183027;
+  }
+  .badge {
+    background: #243b32;
+    color: #d6e5dc;
   }
 }

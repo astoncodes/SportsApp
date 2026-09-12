@@ -1,8 +1,11 @@
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import VenueMap from '../../src/components/map/venue-map';
+import { SportBadge } from '../../src/components/ui/brand';
 import { ConditionChip, EmptyState, ScoreStat, Skeleton } from '../../src/components/ui/activity';
 import { AppText, Button, Chip, sportIcon } from '../../src/components/ui/primitives';
 import {
@@ -18,11 +21,14 @@ import {
   PULSE_LABEL,
   PULSE_TONE,
   relativeTime,
-  timeOfDay,
-  weekdayName,
 } from '../../src/lib/format';
 import { useSession } from '../../src/providers/auth-context';
-import { elevation, radius, space, usePalette } from '../../src/theme';
+import { elevation, radius, space, usePalette, useThemeName } from '../../src/theme';
+import { PresenceCard } from '../../src/features/presence/presence-card';
+import { usePresenceClock } from '../../src/features/presence/api';
+import { SessionCard } from '../../src/features/community/session-card';
+import { useJoinSession, useRunAttendance } from '../../src/features/community/api';
+import type { UpcomingRun } from '../../src/features/venues/api';
 import type { IconName } from '../../src/components/ui/primitives';
 
 /**
@@ -36,6 +42,10 @@ import type { IconName } from '../../src/components/ui/primitives';
 export default function VenueScreen() {
   const { venueId } = useLocalSearchParams<{ venueId: string }>();
   const colors = usePalette();
+  const scheme = useThemeName();
+  const [directionError, setDirectionError] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const now = usePresenceClock();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session } = useSession();
@@ -44,6 +54,26 @@ export default function VenueScreen() {
   const activity = useVenueActivity(venueId);
   const conditions = useVenueConditions(venueId);
   const runs = useUpcomingRuns({ venueId, days: 14 });
+  const join = useJoinSession();
+  const attendance = useRunAttendance(
+    (runs.data ?? []).map((run) => run.run_series_id),
+    session?.user.id,
+  );
+  async function respond(run: UpcomingRun, response: 'going' | 'maybe') {
+    if (!session) return router.push('/sign-in');
+    if (join.isPending) return;
+    setJoinError('');
+    try {
+      const id = await join.mutateAsync({
+        runSeriesId: run.run_series_id,
+        occurrenceDate: run.occurrence_date,
+        attendance: response,
+      });
+      router.push(`/session/${id}`);
+    } catch (cause) {
+      setJoinError((cause as { message?: string })?.message ?? 'Could not join. Please try again.');
+    }
+  }
 
   if (venue.isPending) {
     return (
@@ -78,9 +108,17 @@ export default function VenueScreen() {
   }
 
   const data = venue.data;
-  const checkIns = (activity.data ?? []).filter((row) => row.kind === 'check_in');
-  const intents = (activity.data ?? []).filter((row) => row.kind === 'heading_there');
-  const liveConditions = conditions.data ?? [];
+  const checkIns = (activity.data ?? []).filter(
+    (row) => row.kind === 'check_in' && Date.parse(row.expires_at) > now,
+  );
+  const intents = (activity.data ?? []).filter(
+    (row) => row.kind === 'heading_there' && Date.parse(row.expires_at) > now,
+  );
+  const liveConditions = (conditions.data ?? []).filter((row) => Date.parse(row.expires_at) > now);
+  const hereNow = activity.data
+    ? checkIns.reduce((total, row) => total + row.party_size, 0)
+    : data.here_now;
+  const headingThere = activity.data ? intents.length : data.heading_there;
 
   function openDirections() {
     const label = encodeURIComponent(data.name);
@@ -89,7 +127,10 @@ export default function VenueScreen() {
       android: `geo:${data.latitude},${data.longitude}?q=${label}`,
       default: `https://www.openstreetmap.org/?mlat=${data.latitude}&mlon=${data.longitude}#map=17/${data.latitude}/${data.longitude}`,
     });
-    void Linking.openURL(url);
+    setDirectionError('');
+    void Linking.openURL(url).catch(() =>
+      setDirectionError('Could not open directions. Please try again.'),
+    );
   }
 
   return (
@@ -98,6 +139,9 @@ export default function VenueScreen() {
       contentContainerStyle={{
         padding: space.lg,
         paddingBottom: insets.bottom + space.xxl,
+        width: '100%',
+        maxWidth: 760,
+        alignSelf: 'center',
         gap: space.lg,
       }}
     >
@@ -111,7 +155,31 @@ export default function VenueScreen() {
         </View>
       )}
 
+      <View style={{ height: 220, borderRadius: radius.xl, overflow: 'hidden' }}>
+        <VenueMap
+          colorScheme={scheme}
+          region={{
+            latitude: data.latitude,
+            longitude: data.longitude,
+            latitudeDelta: 0.012,
+            longitudeDelta: 0.012,
+          }}
+          markers={[
+            {
+              id: data.venue_id,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              label: data.name,
+              sportSlug: data.sport_slugs?.[0] ?? null,
+              count: hereNow,
+              isLive: hereNow > 0,
+              isPending: headingThere > 0,
+            },
+          ]}
+        />
+      </View>
       <View style={{ gap: space.sm }}>
+        <SportBadge slug={data.sport_slugs?.[0]} />
         <AppText variant="display">{data.name}</AppText>
 
         <View style={styles.metaRow}>
@@ -156,6 +224,7 @@ export default function VenueScreen() {
         </View>
       </View>
 
+      <PresenceCard venueId={data.venue_id} />
       {/* --- Activity --- */}
       <View
         style={[
@@ -165,16 +234,12 @@ export default function VenueScreen() {
         ]}
       >
         <View style={styles.statRow}>
-          <ScoreStat
-            value={data.here_now}
-            label="Here now"
-            tone={data.here_now > 0 ? 'live' : 'quiet'}
-          />
+          <ScoreStat value={hereNow} label="Here now" tone={hereNow > 0 ? 'live' : 'quiet'} />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <ScoreStat
-            value={data.heading_there}
+            value={headingThere}
             label="Heading there"
-            tone={data.heading_there > 0 ? 'soon' : 'quiet'}
+            tone={headingThere > 0 ? 'soon' : 'quiet'}
           />
         </View>
 
@@ -187,7 +252,7 @@ export default function VenueScreen() {
         )}
 
         <AppText variant="micro" tone="faint">
-          {data.here_now > 0
+          {hereNow > 0
             ? `Updated ${relativeTime(data.last_activity_at).toLowerCase()}`
             : 'No recent activity'}
         </AppText>
@@ -254,56 +319,66 @@ export default function VenueScreen() {
       {(runs.data ?? []).length > 0 && (
         <View style={{ gap: space.sm }}>
           <AppText variant="heading">Coming up here</AppText>
-          {(runs.data ?? []).slice(0, 4).map((run) => (
-            <View
-              key={`${run.run_series_id}-${run.occurrence_date}`}
-              style={[
-                styles.runRow,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name={sportIcon(run.sport_slug)}
-                size={18}
-                color={colors.textMuted}
+          {!!joinError && <AppText tone="alert">{joinError}</AppText>}
+          {(runs.data ?? []).slice(0, 4).map((run) => {
+            const response = attendance.data?.find(
+              (row) =>
+                row.run_series_id === run.run_series_id &&
+                row.occurrence_date === run.occurrence_date,
+            );
+            return (
+              <SessionCard
+                key={`${run.run_series_id}-${run.occurrence_date}`}
+                item={run}
+                response={response}
+                pending={join.isPending && join.variables?.runSeriesId === run.run_series_id}
+                attendanceUnavailable={attendance.isError}
+                onOpen={
+                  response?.session_id
+                    ? () => router.push(`/session/${response.session_id}`)
+                    : undefined
+                }
+                onRespond={(value) => void respond(run, value)}
               />
-              <View style={{ flex: 1 }}>
-                <AppText variant="bodyStrong">{run.title ?? `${run.sport_name} run`}</AppText>
-                <AppText variant="caption" tone="muted">
-                  {weekdayName(run.starts_at)} · {timeOfDay(run.starts_at)}
-                  {run.organizer_name ? ` · ${run.organizer_name}` : ''}
-                </AppText>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
-      {/* --- Actions ---
-          Only actions that genuinely work are rendered. Check-in writes land in
-          Slice D; until the RPC exists, showing a "Check in" button here would
-          be a button that lies. */}
       <View style={{ gap: space.sm }}>
         <Button
-          label="Organize a run"
+          label="Check in here"
+          icon="map-marker-check"
+          onPress={() =>
+            router.push({ pathname: '/check-in/[venueId]', params: { venueId: data.venue_id } })
+          }
+        />
+        <Button
+          label="I'm on my way"
+          icon="walk"
+          variant="outline"
+          onPress={() =>
+            router.push({
+              pathname: '/check-in/[venueId]',
+              params: { venueId: data.venue_id, arrival: 'true' },
+            })
+          }
+        />
+        <Button
+          label="Create a session here"
           icon="calendar-plus"
           onPress={() => router.push({ pathname: '/run/new', params: { venueId } })}
         />
-        {session ? (
-          <View style={[styles.notice, { backgroundColor: colors.surfaceMuted }]}>
-            <AppText variant="caption" tone="muted">
-              Checking in and “I’m heading there” arrive with the live-actions slice. Everything on
-              this screen is real data from the database.
-            </AppText>
-          </View>
-        ) : (
+        {!session && (
           <Button
             label="Sign in to join"
             icon="login"
+            variant="outline"
+            tone="neutral"
             onPress={() => router.push('/sign-in')}
-            accessibilityHint="You only need an account to check in or post a run"
           />
         )}
+        {!!directionError && <AppText tone="alert">{directionError}</AppText>}
 
         <Button
           label="Directions"

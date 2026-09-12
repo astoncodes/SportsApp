@@ -6,7 +6,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EmptyState, Skeleton } from '../../components/ui/activity';
-import { AppText, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
+import { AppText, Button, Chip, PressableSurface, sportIcon } from '../../components/ui/primitives';
 import { relativeTime, timeOfDay, weekdayName } from '../../lib/format';
 import { elevation, radius, space, usePalette } from '../../theme';
 import { useCommunityFeed } from './api';
@@ -20,36 +20,39 @@ function ClipPlayer({ url }: { url: string }) {
   );
 }
 
-export function FeedScreen() {
+export function MomentsFeed({ sessionId }: { sessionId?: string } = {}) {
   const colors = usePalette();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const feed = useCommunityFeed();
+  const feed = useCommunityFeed(undefined, sessionId);
 
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={{
-        paddingTop: insets.top + space.lg,
-        paddingBottom: insets.bottom + 96,
+        paddingTop: space.lg,
+        paddingBottom: insets.bottom + space.xl,
+        maxWidth: 760,
+        width: '100%',
+        alignSelf: 'center',
       }}
       refreshControl={
         <RefreshControl refreshing={feed.isRefetching} onRefresh={() => feed.refetch()} />
       }
     >
-      <View style={styles.heading}>
-        <AppText variant="display">Around you</AppText>
-        <AppText variant="body" tone="muted">
-          Sessions, photos and quick clips from the local sports community.
-        </AppText>
-      </View>
-
       {feed.isPending ? (
         <View style={styles.list}>
           {[0, 1].map((key) => (
             <Skeleton key={key} height={390} />
           ))}
         </View>
+      ) : feed.isError ? (
+        <EmptyState
+          icon="wifi-off"
+          title="Could not load moments"
+          body="Check your connection and try again."
+          action={<Button label="Try again" onPress={() => void feed.refetch()} />}
+        />
       ) : feed.data?.length ? (
         <View style={styles.list}>
           {feed.data.map((post) => {
@@ -85,6 +88,7 @@ export function FeedScreen() {
                     ) : (
                       <Image
                         source={{ uri: firstMedia.url }}
+                        accessibilityLabel={post.caption || `Photo from ${post.sessionTitle}`}
                         style={StyleSheet.absoluteFill}
                         contentFit="cover"
                         transition={180}
@@ -123,8 +127,8 @@ export function FeedScreen() {
         <View style={styles.empty}>
           <EmptyState
             icon="image-multiple-outline"
-            title="No moments nearby yet"
-            body="Join a scheduled session, then share the first photo or short clip."
+            title={sessionId ? 'No photos from this session yet' : 'No moments nearby yet'}
+            body="Join a session and share a photo or short clip with your local sports community."
           />
         </View>
       )}
